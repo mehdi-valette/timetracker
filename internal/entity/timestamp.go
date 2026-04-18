@@ -1,6 +1,11 @@
 package entity
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var TimestampErrorNegativeDurationErr = errors.New("duration cannot be negative")
 
 type Timestamp time.Time
 
@@ -14,4 +19,13 @@ func (t Timestamp) GetSeconds() int64 {
 
 func (t Timestamp) IsBefore(t2 Timestamp) bool {
 	return t.GetSeconds() < t2.GetSeconds()
+}
+
+func (t1 Timestamp) TimeEllapsedSince(t2 Timestamp) (Duration, error) {
+
+	if t2.GetSeconds() > t1.GetSeconds() {
+		return Duration(0), TimestampErrorNegativeDurationErr
+	}
+
+	return Duration(t1.GetSeconds() - t2.GetSeconds()), nil
 }

@@ -1,19 +1,31 @@
 package entity
 
-import "errors"
+import (
+	"errors"
+)
 
 var TimeRangeDurationNoEndErr = errors.New("no end value")
 var TimeRangeDurationEndBeforeStartErr = errors.New("end before start")
 
 type TimeRange struct {
-	id     DbId
-	taskId DbId
-	start  Timestamp
-	end    *Timestamp
+	id          DbId
+	date        Dater
+	rangeHasEnd bool
+	start       Timestamp
+	end         Timestamp
 }
 
-func (tr TimeRange) Duration() (uint32, error) {
-	if tr.end == nil {
+func CreateTimeRange(id DbId, date Dater) TimeRange {
+	return TimeRange{
+		id:    id,
+		date:  date,
+		start: Timestamp(date.Now()),
+		end:   Timestamp{},
+	}
+}
+
+func (tr TimeRange) Duration() (Duration, error) {
+	if !tr.rangeHasEnd {
 		return 0, TimeRangeDurationNoEndErr
 	}
 
@@ -21,5 +33,14 @@ func (tr TimeRange) Duration() (uint32, error) {
 		return 0, TimeRangeDurationEndBeforeStartErr
 	}
 
-	return uint32(tr.end.GetSeconds() - tr.start.GetSeconds()), nil
+	return Duration(tr.end.GetSeconds() - tr.start.GetSeconds()), nil
+}
+
+func (tr TimeRange) IsFinished() bool {
+	return tr.rangeHasEnd
+}
+
+func (tr *TimeRange) End() {
+	tr.end = tr.date.Now()
+	tr.rangeHasEnd = true
 }
