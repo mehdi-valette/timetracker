@@ -18,6 +18,7 @@ type TimeRangeManager interface {
 	Create() (entity.TimeRanger, error)
 	Start(id entity.DbId) error
 	Stop(id entity.DbId) error
+	Save(id entity.DbId) error
 }
 
 type TimeRangeManagement struct {
@@ -41,7 +42,11 @@ func CreateTimeRangeManager(repo TimeRangeRepositoryManager, date entity.Dater) 
 }
 
 func (trm *TimeRangeManagement) Create() (entity.TimeRanger, error) {
-	id, err := trm.repository.Create()
+	id, createError := trm.repository.Create()
+
+	if createError != nil {
+		return nil, createError
+	}
 
 	timeRange := entity.CreateTimeRange(id, trm.date)
 
@@ -49,7 +54,7 @@ func (trm *TimeRangeManagement) Create() (entity.TimeRanger, error) {
 
 	trm.repository.Save(timeRange)
 
-	return timeRange, err
+	return timeRange, createError
 }
 
 func (trm *TimeRangeManagement) Start(id entity.DbId) error {
@@ -61,9 +66,7 @@ func (trm *TimeRangeManagement) Start(id entity.DbId) error {
 
 	timeRange.Start()
 
-	trm.repository.Save(timeRange)
-
-	return nil
+	return trm.repository.Save(timeRange)
 }
 
 func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
@@ -75,9 +78,7 @@ func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
 
 	timeRange.End()
 
-	trm.repository.Save(timeRange)
-
-	return nil
+	return trm.repository.Save(timeRange)
 }
 
 func (trm *TimeRangeManagement) Delete(id entity.DbId) error {
@@ -96,4 +97,14 @@ func (trm *TimeRangeManagement) Delete(id entity.DbId) error {
 	delete(trm.timeRanges, id)
 
 	return nil
+}
+
+func (trm *TimeRangeManagement) Save(id entity.DbId) error {
+	timeRange, found := trm.timeRanges[id]
+
+	if !found {
+		return TimeRangeManagerTimeRangeNotFoundErr
+	}
+
+	return trm.repository.Save(timeRange)
 }
