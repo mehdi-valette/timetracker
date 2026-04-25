@@ -7,11 +7,19 @@ import (
 
 var TimestampErrorNegativeDurationErr = errors.New("duration cannot be negative")
 
-type Timestamp time.Time
-
 func CreateTimestampSeconds(seconds int64) Timestamp {
 	return Timestamp(time.Unix(seconds, 0))
 }
+
+type Timestamper interface {
+	GetSeconds() int64
+	IsBefore(t2 Timestamp) bool
+	TimeEllapsedSince(t2 Timestamp) (Duration, error)
+}
+
+type Timestamp time.Time
+
+var _ Timestamper = Timestamp{}
 
 func (t Timestamp) GetSeconds() int64 {
 	return time.Time(t).Unix()

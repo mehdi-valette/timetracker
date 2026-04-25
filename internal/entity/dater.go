@@ -6,10 +6,14 @@ type Dater interface {
 	Now() Timestamp
 }
 
-type Date struct{}
+type date struct{}
 
-var _ Dater = Date{}
+var _ Dater = date{}
 
-func (d Date) Now() Timestamp {
+func CreateDate() Dater {
+	return date{}
+}
+
+func (d date) Now() Timestamp {
 	return Timestamp(time.Now())
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func TestDateNow(t *testing.T) {
-	date := Date{}
+	date := CreateDate()
 
 	expected := Timestamp(time.Now())
 
