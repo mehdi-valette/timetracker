@@ -20,6 +20,22 @@ func (d *DaterMock) Set(date time.Time) {
 	d.innerDate = date
 }
 
+func TestCreateTimeRange(t *testing.T) {
+	dateMock := DaterMock{
+		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	timeRange := CreateTimeRange(12, &dateMock)
+
+	if timeRange.GetId() != 12 {
+		t.Errorf("should have the ID set during its creation")
+	}
+
+	if timeRange.HasStated() || timeRange.HasEnded() {
+		t.Errorf("should not have started or ended")
+	}
+}
+
 func TestTimeRangeDurationSuccess(t *testing.T) {
 	timerange := timeRange{
 		id:              1,
@@ -104,22 +120,6 @@ func TestTimeRangeDurationEndEqualsStart(t *testing.T) {
 	}
 }
 
-func TestCreateTimeRange(t *testing.T) {
-	dateMock := DaterMock{
-		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-
-	timeRange := CreateTimeRange(12, &dateMock)
-
-	if timeRange.GetId() != 12 {
-		t.Errorf("should have the ID set during its creation")
-	}
-
-	if timeRange.HasStated() || timeRange.HasEnded() {
-		t.Errorf("should not have started or ended")
-	}
-}
-
 func TestTimeRangeEnd(t *testing.T) {
 	mockedDate := DaterMock{
 		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -153,5 +153,51 @@ func TestTimeRangeEnd(t *testing.T) {
 
 	if err != nil || duration != 3600 {
 		t.Errorf("the time range should have a duration of 3600 seconds, but has %d, %e", duration, err)
+	}
+}
+
+func TestTimeRangeGetId(t *testing.T) {
+	chosenId := DbId(12)
+
+	timeRange := CreateTimeRange(chosenId, date{})
+
+	if timeRange.GetId() != chosenId {
+		t.Error("should return the correct ID")
+	}
+}
+
+func TestTimeRangeGetStart(t *testing.T) {
+	chosenDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	mockedDate := DaterMock{
+		innerDate: chosenDate,
+	}
+
+	timeRange := CreateTimeRange(0, mockedDate)
+
+	timeRange.Start()
+
+	if timeRange.GetStart() != Timestamp(chosenDate) {
+		t.Error("should return the correct date")
+	}
+}
+
+func TestTimeRangeGetEnd(t *testing.T) {
+	startDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+
+	mockedDate := DaterMock{
+		innerDate: startDate,
+	}
+
+	timeRange := CreateTimeRange(0, &mockedDate)
+	timeRange.Start()
+
+	mockedDate.innerDate = endDate
+
+	timeRange.End()
+
+	if timeRange.GetEnd() != Timestamp(endDate) {
+		t.Error("should return the correct date")
 	}
 }
