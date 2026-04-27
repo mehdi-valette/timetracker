@@ -8,7 +8,7 @@ import (
 
 var TimeRangeManagerTimeRangeNotFoundErr = errors.New("cannot find the time range")
 
-type TimeRangeRepositoryManager interface {
+type TimeRangePersister interface {
 	Create() (entity.DbId, error)
 	Save(timeRange entity.TimeRanger) error
 	Delete(id entity.DbId) error
@@ -22,7 +22,7 @@ type TimeRangeManager interface {
 }
 
 type TimeRangeManagement struct {
-	repository TimeRangeRepositoryManager
+	repository TimeRangePersister
 	timeRanges map[entity.DbId]entity.TimeRanger
 	date       entity.Dater
 
@@ -32,7 +32,7 @@ type TimeRangeManagement struct {
 
 var _ TimeRangeManager = &TimeRangeManagement{}
 
-func CreateTimeRangeManager(repo TimeRangeRepositoryManager, date entity.Dater) TimeRangeManager {
+func CreateTimeRangeManager(repo TimeRangePersister, date entity.Dater) TimeRangeManager {
 	return &TimeRangeManagement{
 		repository:      repo,
 		date:            date,

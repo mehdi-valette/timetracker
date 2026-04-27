@@ -38,7 +38,7 @@ type TimeRangeRepositoryMock struct {
 	saveError        error
 }
 
-var _ TimeRangeRepositoryManager = &TimeRangeRepositoryMock{}
+var _ TimeRangePersister = &TimeRangeRepositoryMock{}
 
 func (trrm *TimeRangeRepositoryMock) Create() (entity.DbId, error) {
 	trrm.lastId += 1
