@@ -9,13 +9,14 @@ import (
 var TimeRangeManagerTimeRangeNotFoundErr = errors.New("cannot find the time range")
 
 type TimeRangePersister interface {
-	Create() (entity.DbId, error)
+	Create(taskId entity.DbId) (entity.DbId, error)
 	Save(timeRange entity.TimeRanger) error
 	Delete(id entity.DbId) error
+	ListByTaskId(taskId entity.DbId) []entity.TimeRanger
 }
 
 type TimeRangeManager interface {
-	Create() (entity.TimeRanger, error)
+	Create(taskId entity.DbId) (entity.TimeRanger, error)
 	Start(id entity.DbId) error
 	Stop(id entity.DbId) error
 	Save(id entity.DbId) error
@@ -41,14 +42,14 @@ func CreateTimeRangeManager(repo TimeRangePersister, date entity.Dater) TimeRang
 	}
 }
 
-func (trm *TimeRangeManagement) Create() (entity.TimeRanger, error) {
-	id, createError := trm.repository.Create()
+func (trm *TimeRangeManagement) Create(taskId entity.DbId) (entity.TimeRanger, error) {
+	id, createError := trm.repository.Create(taskId)
 
 	if createError != nil {
 		return nil, createError
 	}
 
-	timeRange := entity.CreateTimeRange(id, trm.date)
+	timeRange := entity.CreateTimeRange(id, taskId, trm.date)
 
 	trm.timeRanges[timeRange.GetId()] = timeRange
 

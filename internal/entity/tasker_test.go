@@ -74,13 +74,13 @@ func TestTaskIsEqual(t *testing.T) {
 func TestTaskRename(t *testing.T) {
 	task := CreateTask(0, "     hello     ", date{})
 
-	if task.Name() != "hello" {
+	if task.GetName() != "hello" {
 		t.Errorf("name should be 'hello")
 	}
 
 	task.Rename("world")
 
-	if task.Name() != "world" {
+	if task.GetName() != "world" {
 		t.Errorf("name should be 'world'")
 	}
 }
@@ -88,7 +88,7 @@ func TestTaskRename(t *testing.T) {
 func TestTaskSetTimeRange(t *testing.T) {
 	task, _ := createTestTask()
 
-	timeRange := CreateTimeRange(0, date{})
+	timeRange := CreateTimeRange(0, task.id, date{})
 
 	if len(task.timeRanges) != 0 {
 		t.Errorf("shouldn't have time ranges yet")
@@ -102,10 +102,10 @@ func TestTaskSetTimeRange(t *testing.T) {
 }
 
 func TestTaskGetTimeRange(t *testing.T) {
-	timeRange := CreateTimeRange(12, date{})
-	timeRange.Start()
-
 	task, _ := createTestTask()
+
+	timeRange := CreateTimeRange(12, task.id, date{})
+	timeRange.Start()
 
 	task.SetTimeRange(timeRange)
 
@@ -155,7 +155,7 @@ func TestTaskDurationSingleTimeRange(t *testing.T) {
 
 	mockDate.Set(currentTime)
 
-	timeRange := CreateTimeRange(0, mockDate)
+	timeRange := CreateTimeRange(0, task.id, mockDate)
 	timeRange.Start()
 	mockDate.Set(currentTime.Add(time.Hour))
 	timeRange.End()
@@ -174,13 +174,13 @@ func TestTaskDurationMultipleTimeRange(t *testing.T) {
 	mockDate.Set(currentTime)
 
 	// first time range
-	firstTimeRange := CreateTimeRange(0, mockDate)
+	firstTimeRange := CreateTimeRange(0, task.id, mockDate)
 	firstTimeRange.Start()
 	mockDate.Set(currentTime.Add(time.Hour))
 	firstTimeRange.End()
 
 	// second time range
-	secondTimeRange := CreateTimeRange(13, mockDate)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDate)
 	secondTimeRange.Start()
 	mockDate.Set(currentTime.Add(3 * time.Hour))
 	secondTimeRange.End()
@@ -200,7 +200,7 @@ func TestTaskDurationUnfinishedTimeRange(t *testing.T) {
 	mockDate.Set(currentTime)
 
 	// first time range
-	firstTimeRange := CreateTimeRange(12, mockDate)
+	firstTimeRange := CreateTimeRange(12, task.id, mockDate)
 	firstTimeRange.Start()
 	mockDate.Set(currentTime.Add(time.Hour))
 	firstTimeRange.End()
@@ -208,7 +208,7 @@ func TestTaskDurationUnfinishedTimeRange(t *testing.T) {
 	mockDate.Set(currentTime.Add(2 * time.Hour))
 
 	// second time range
-	secondTimeRange := CreateTimeRange(13, mockDate)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDate)
 	secondTimeRange.Start()
 
 	mockDate.Set(currentTime.Add(3 * time.Hour))
@@ -227,7 +227,7 @@ func TestTaskDurationTimeBackward(t *testing.T) {
 	currentTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	mockDate.Set(currentTime)
 
-	timeRange := CreateTimeRange(12, mockDate)
+	timeRange := CreateTimeRange(12, task.id, mockDate)
 	timeRange.Start()
 
 	mockDate.Set(currentTime.Add(-time.Hour))
@@ -243,10 +243,10 @@ func TestTaskDurationTwoUnfinishedTimeRange(t *testing.T) {
 	task, mockDater := createTestTask()
 
 	// first time range
-	firstTimeRange := CreateTimeRange(12, mockDater)
+	firstTimeRange := CreateTimeRange(12, task.id, mockDater)
 
 	// second time range
-	secondTimeRange := CreateTimeRange(13, mockDater)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDater)
 
 	// join the time ranges to the task
 	task.SetTimeRange(firstTimeRange)
@@ -268,7 +268,7 @@ func TestIsRunningNoTimeRange(t *testing.T) {
 func TestIsRunningSingleUnfinishedTimeRange(t *testing.T) {
 	task, mockDater := createTestTask()
 
-	timeRange := CreateTimeRange(12, mockDater)
+	timeRange := CreateTimeRange(12, task.id, mockDater)
 
 	task.SetTimeRange(timeRange)
 
@@ -280,11 +280,11 @@ func TestIsRunningSingleUnfinishedTimeRange(t *testing.T) {
 func TestIsRunningTwoFinishedTimeRanges(t *testing.T) {
 	task, mockDater := createTestTask()
 
-	firstTimeRange := CreateTimeRange(12, mockDater)
+	firstTimeRange := CreateTimeRange(12, task.id, mockDater)
 	mockDater.Set(mockDater.innerDate.Add(time.Hour))
 	firstTimeRange.End()
 
-	secondTimeRange := CreateTimeRange(13, mockDater)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDater)
 	mockDater.Set(mockDater.innerDate.Add(time.Hour))
 	secondTimeRange.End()
 
@@ -299,11 +299,11 @@ func TestIsRunningTwoFinishedTimeRanges(t *testing.T) {
 func TestIsRunningOneFinishedOneUnfinishedimeRanges(t *testing.T) {
 	task, mockDater := createTestTask()
 
-	firstTimeRange := CreateTimeRange(12, mockDater)
+	firstTimeRange := CreateTimeRange(12, task.id, mockDater)
 	mockDater.Set(mockDater.innerDate.Add(time.Hour))
 	firstTimeRange.End()
 
-	secondTimeRange := CreateTimeRange(13, mockDater)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDater)
 
 	task.SetTimeRange(firstTimeRange)
 	task.SetTimeRange(secondTimeRange)
@@ -316,9 +316,9 @@ func TestIsRunningOneFinishedOneUnfinishedimeRanges(t *testing.T) {
 func TestIsRunningTwoUnfinishedimeRanges(t *testing.T) {
 	task, mockDater := createTestTask()
 
-	firstTimeRange := CreateTimeRange(12, mockDater)
+	firstTimeRange := CreateTimeRange(12, task.id, mockDater)
 
-	secondTimeRange := CreateTimeRange(13, mockDater)
+	secondTimeRange := CreateTimeRange(13, task.id, mockDater)
 
 	task.SetTimeRange(firstTimeRange)
 	task.SetTimeRange(secondTimeRange)

@@ -27,7 +27,7 @@ type MethodCall struct {
 	param  any
 }
 
-type TimeRangeRepositoryMock struct {
+type timeRangeRepositoryMock struct {
 	calledWith       []MethodCall
 	countCreateCalls uint8
 	countDeleteCalls uint8
@@ -36,28 +36,40 @@ type TimeRangeRepositoryMock struct {
 	deleteError      error
 	lastId           entity.DbId
 	saveError        error
+	timeRanges       map[entity.DbId]entity.TimeRanger
 }
 
-var _ TimeRangePersister = &TimeRangeRepositoryMock{}
+var _ TimeRangePersister = &timeRangeRepositoryMock{}
 
-func (trrm *TimeRangeRepositoryMock) Create() (entity.DbId, error) {
+func createTimeRangeRepositoryMock() *timeRangeRepositoryMock {
+	return &timeRangeRepositoryMock{
+		timeRanges: make(map[entity.DbId]entity.TimeRanger),
+	}
+}
+
+func (trrm *timeRangeRepositoryMock) Create(taskId entity.DbId) (entity.DbId, error) {
 	trrm.lastId += 1
 	trrm.countCreateCalls += 1
 
 	trrm.calledWith = append(trrm.calledWith, MethodCall{"Create", nil})
 
+	timeRange := entity.CreateTimeRange(trrm.lastId, taskId, DateMock{})
+	trrm.timeRanges[timeRange.GetId()] = timeRange
+
 	return trrm.lastId, trrm.createError
 }
 
-func (trrm *TimeRangeRepositoryMock) Save(timeRange entity.TimeRanger) error {
+func (trrm *timeRangeRepositoryMock) Save(timeRange entity.TimeRanger) error {
 	trrm.countSaveCalls += 1
 
 	trrm.calledWith = append(trrm.calledWith, MethodCall{"Save", timeRange})
 
+	trrm.timeRanges[timeRange.GetId()] = timeRange
+
 	return trrm.saveError
 }
 
-func (trrm *TimeRangeRepositoryMock) Delete(id entity.DbId) error {
+func (trrm *timeRangeRepositoryMock) Delete(id entity.DbId) error {
 	trrm.countDeleteCalls += 1
 
 	trrm.calledWith = append(trrm.calledWith, MethodCall{"Delete", id})
@@ -65,7 +77,7 @@ func (trrm *TimeRangeRepositoryMock) Delete(id entity.DbId) error {
 	return trrm.deleteError
 }
 
-func (trrm *TimeRangeRepositoryMock) HasBeenCalledWith(method string, param any) bool {
+func (trrm *timeRangeRepositoryMock) HasBeenCalledWith(method string, param any) bool {
 	for _, call := range trrm.calledWith {
 		if call.method == method && call.param == param {
 			return true
@@ -75,12 +87,24 @@ func (trrm *TimeRangeRepositoryMock) HasBeenCalledWith(method string, param any)
 	return false
 }
 
+func (trrm *timeRangeRepositoryMock) ListByTaskId(taskId entity.DbId) []entity.TimeRanger {
+	timeRanges := make([]entity.TimeRanger, 0)
+
+	for _, timeRange := range trrm.timeRanges {
+		if timeRange.GetTaskId() == taskId {
+			timeRanges = append(timeRanges, timeRange)
+		}
+	}
+
+	return timeRanges
+}
+
 func TestTimeRangeManagerCreate(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Errorf("should not have returned an error")
@@ -106,13 +130,12 @@ func TestTimeRangeManagerCreate(t *testing.T) {
 func TestTimeRangeManagerCreateError(t *testing.T) {
 	chosenError := errors.New("create error")
 
-	repoMock := &TimeRangeRepositoryMock{
-		createError: chosenError,
-	}
+	repoMock := createTimeRangeRepositoryMock()
+	repoMock.createError = chosenError
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if !errors.Is(createErr, chosenError) {
 		t.Error("should have returned an error")
@@ -124,11 +147,11 @@ func TestTimeRangeManagerCreateError(t *testing.T) {
 }
 
 func TestTimeRangeManagerStart(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -151,11 +174,11 @@ func TestTimeRangeManagerStart(t *testing.T) {
 }
 
 func TestTimeRangeManagerStartNotFound(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	_, createErr := manager.Create()
+	_, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -171,13 +194,12 @@ func TestTimeRangeManagerStartNotFound(t *testing.T) {
 func TestTimeRangeManagerStartError(t *testing.T) {
 	chosenError := errors.New("save error")
 
-	repoMock := &TimeRangeRepositoryMock{
-		saveError: chosenError,
-	}
+	repoMock := createTimeRangeRepositoryMock()
+	repoMock.saveError = chosenError
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -195,11 +217,11 @@ func TestTimeRangeManagerStartError(t *testing.T) {
 }
 
 func TestTimeRangeManagerStop(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -227,13 +249,12 @@ func TestTimeRangeManagerStop(t *testing.T) {
 func TestTimeRangeManagerStopError(t *testing.T) {
 	chosenError := errors.New("save error")
 
-	repoMock := &TimeRangeRepositoryMock{
-		saveError: chosenError,
-	}
+	repoMock := createTimeRangeRepositoryMock()
+	repoMock.saveError = chosenError
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -255,11 +276,11 @@ func TestTimeRangeManagerStopError(t *testing.T) {
 }
 
 func TestTimeRangeManagerStopNotFound(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{})
 
-	_, createErr := manager.Create()
+	_, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Errorf("should not return an error")
@@ -273,11 +294,11 @@ func TestTimeRangeManagerStopNotFound(t *testing.T) {
 }
 
 func TestTimeRangeManagerDelete(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -311,11 +332,11 @@ func TestTimeRangeManagerDelete(t *testing.T) {
 }
 
 func TestTimeRangeManagerDeleteNotFound(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -337,13 +358,12 @@ func TestTimeRangeManagerDeleteNotFound(t *testing.T) {
 func TestTimeRangeManagerDeleteError(t *testing.T) {
 	deleteErr := errors.New("delete error")
 
-	repoMock := &TimeRangeRepositoryMock{
-		deleteError: deleteErr,
-	}
+	repoMock := createTimeRangeRepositoryMock()
+	repoMock.deleteError = deleteErr
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -357,11 +377,11 @@ func TestTimeRangeManagerDeleteError(t *testing.T) {
 }
 
 func TestTimeRangeManagerSave(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -379,11 +399,11 @@ func TestTimeRangeManagerSave(t *testing.T) {
 }
 
 func TestTimeRangeManagerSaveNotFound(t *testing.T) {
-	repoMock := &TimeRangeRepositoryMock{}
+	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	_, createErr := manager.Create()
+	_, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -399,13 +419,12 @@ func TestTimeRangeManagerSaveNotFound(t *testing.T) {
 func TestTimeRangeManagerSaveError(t *testing.T) {
 	expectedErr := errors.New("delete error")
 
-	repoMock := &TimeRangeRepositoryMock{
-		saveError: expectedErr,
-	}
+	repoMock := createTimeRangeRepositoryMock()
+	repoMock.saveError = expectedErr
 
 	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
 
-	timeRange, createErr := manager.Create()
+	timeRange, createErr := manager.Create(0)
 
 	if createErr != nil {
 		t.Error("should not return an error")

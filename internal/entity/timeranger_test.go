@@ -25,10 +25,14 @@ func TestCreateTimeRange(t *testing.T) {
 		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
-	timeRange := CreateTimeRange(12, &dateMock)
+	timeRange := CreateTimeRange(12, 3, &dateMock)
 
 	if timeRange.GetId() != 12 {
 		t.Errorf("should have the ID set during its creation")
+	}
+
+	if timeRange.GetTaskId() != 3 {
+		t.Errorf("should belong to a task from creation")
 	}
 
 	if timeRange.HasStated() || timeRange.HasEnded() {
@@ -69,7 +73,7 @@ func TestTimeRangeDurationNoStart(t *testing.T) {
 }
 
 func TestTimeRangeDurationNoEnd(t *testing.T) {
-	timeRange := CreateTimeRange(0, date{})
+	timeRange := CreateTimeRange(0, 0, date{})
 
 	timeRange.Start()
 
@@ -125,7 +129,7 @@ func TestTimeRangeEnd(t *testing.T) {
 		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
-	timeRange := CreateTimeRange(0, &mockedDate)
+	timeRange := CreateTimeRange(0, 0, &mockedDate)
 
 	if timeRange.HasStated() {
 		t.Errorf("should not have started yet")
@@ -159,7 +163,7 @@ func TestTimeRangeEnd(t *testing.T) {
 func TestTimeRangeGetId(t *testing.T) {
 	chosenId := DbId(12)
 
-	timeRange := CreateTimeRange(chosenId, date{})
+	timeRange := CreateTimeRange(chosenId, 0, date{})
 
 	if timeRange.GetId() != chosenId {
 		t.Error("should return the correct ID")
@@ -173,7 +177,7 @@ func TestTimeRangeGetStart(t *testing.T) {
 		innerDate: chosenDate,
 	}
 
-	timeRange := CreateTimeRange(0, mockedDate)
+	timeRange := CreateTimeRange(0, 0, mockedDate)
 
 	timeRange.Start()
 
@@ -190,7 +194,7 @@ func TestTimeRangeGetEnd(t *testing.T) {
 		innerDate: startDate,
 	}
 
-	timeRange := CreateTimeRange(0, &mockedDate)
+	timeRange := CreateTimeRange(0, 0, &mockedDate)
 	timeRange.Start()
 
 	mockedDate.innerDate = endDate

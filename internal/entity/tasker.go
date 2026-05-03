@@ -21,8 +21,8 @@ type Tasker interface {
 	GetTimeRange(id DbId) (TimeRanger, error)
 	Duration() (Duration, error)
 	IsRunning() bool
-	Name() ProperNoun
-	Id() DbId
+	GetName() ProperNoun
+	GetId() DbId
 }
 
 type task struct {
@@ -38,11 +38,11 @@ func (t *task) Rename(newName string) {
 	t.name = CreateProperNoun(newName)
 }
 
-func (t task) Id() DbId {
+func (t task) GetId() DbId {
 	return t.id
 }
 
-func (t task) Name() ProperNoun {
+func (t task) GetName() ProperNoun {
 	return t.name
 }
 

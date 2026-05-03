@@ -47,10 +47,21 @@ func (p *persisterMock) Save(entity.Tasker) error { panic("todo") }
 
 func (p *persisterMock) Delete(entity.DbId) error { panic("todo") }
 
+func createTestTaskManager(persistMock *persisterMock) (TaskManager, TimeRangePersister) {
+	timeRangeRepository := createTimeRangeRepositoryMock()
+
+	taskManager := CreateTaskManager(persistMock, CreateTimeRangeManager(timeRangeRepository, DateMock{}), entity.CreateDate())
+
+	return taskManager, timeRangeRepository
+}
+
+func createTestTaskManagerWithMock(persistMock *persisterMock, timeRangePersister TimeRangePersister) TaskManager {
+	return CreateTaskManager(persistMock, CreateTimeRangeManager(timeRangePersister, DateMock{}), entity.CreateDate())
+}
+
 func TestTaskManagerCreate(t *testing.T) {
 	persistMock := createPersisterMock()
-
-	manager := CreateTaskManager(persistMock, entity.CreateDate())
+	manager, _ := createTestTaskManager(persistMock)
 
 	task, createError := manager.Create("   hello     ")
 
@@ -58,8 +69,8 @@ func TestTaskManagerCreate(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	if task.Name() != "hello" {
-		t.Errorf("the name should be \"hello\n, it is %s", task.Name())
+	if task.GetName() != "hello" {
+		t.Errorf("the name should be \"hello\n, it is %s", task.GetName())
 	}
 
 	if !persistMock.HasBeenCalledWith("Create", nil) {
@@ -73,7 +84,7 @@ func TestTaskManagerCreateError(t *testing.T) {
 
 	persistMock.createErr = expectedErr
 
-	manager := CreateTaskManager(persistMock, entity.CreateDate())
+	manager, _ := createTestTaskManager(persistMock)
 
 	task, createError := manager.Create("   hello     ")
 
@@ -87,5 +98,96 @@ func TestTaskManagerCreateError(t *testing.T) {
 
 	if !persistMock.HasBeenCalledWith("Create", nil) {
 		t.Error("should have called create")
+	}
+}
+
+func TestTaskManagerStart(t *testing.T) {
+	persistMock := createPersisterMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	task, _ := manager.Create("hello")
+
+	if task.IsRunning() {
+		t.Error("the task should not yet be running")
+	}
+
+	manager.Start(task.GetId())
+
+	if !task.IsRunning() {
+		t.Error("the task should be running")
+	}
+}
+
+func TestTaskManagerStartNotFound(t *testing.T) {
+	persistMock := createPersisterMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	task, _ := manager.Create("hello")
+
+	if task.IsRunning() {
+		t.Error("the task should not yet be running")
+	}
+
+	startErr := manager.Start(-1)
+
+	if !errors.Is(startErr, TaskNotFoundErr) {
+		t.Error("should return an error")
+	}
+}
+
+func TestTaskManagerStartAlreadyRunning(t *testing.T) {
+	persistMock := createPersisterMock()
+
+	manager, timeRangeRepository := createTestTaskManager(persistMock)
+
+	task, _ := manager.Create("hello")
+
+	if task.IsRunning() {
+		t.Error("the task should not yet be running")
+	}
+
+	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 0 {
+		t.Error("task should have 0 time ranges")
+	}
+
+	firstStartErr := manager.Start(task.GetId())
+
+	if firstStartErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 1 {
+		t.Error("task should have 1 time range")
+	}
+
+	secondStartErr := manager.Start(task.GetId())
+
+	if secondStartErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 1 {
+		t.Error("task should have 1 time range")
+	}
+
+}
+
+func TestTaskManagerStartTimeRangeError(t *testing.T) {
+	expectedError := errors.New("cannot create")
+
+	persistMock := createPersisterMock()
+	timeRangeRepoMock := createTimeRangeRepositoryMock()
+	timeRangeRepoMock.createError = expectedError
+
+	manager := createTestTaskManagerWithMock(persistMock, timeRangeRepoMock)
+
+	task, _ := manager.Create("hello")
+
+	startErr := manager.Start(task.GetId())
+
+	if !errors.Is(startErr, expectedError) {
+		t.Error("should return an error")
 	}
 }
