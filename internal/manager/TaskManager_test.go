@@ -12,25 +12,30 @@ type mockCalls struct {
 	arg    any
 }
 
-type persisterMock struct {
+type taskRepositoryMock struct {
 	lastId    entity.DbId
 	createErr error
 	saverErr  error
+	getErr    error
 	calls     []mockCalls
+	taskList  map[entity.DbId]entity.Tasker
 }
 
-func createPersisterMock() *persisterMock {
-	return &persisterMock{
-		lastId: 0,
-		calls:  make([]mockCalls, 0),
+var _ TaskPersister = &taskRepositoryMock{}
+
+func createTaskRepositoryMock() *taskRepositoryMock {
+	return &taskRepositoryMock{
+		lastId:   0,
+		calls:    make([]mockCalls, 0),
+		taskList: make(map[entity.DbId]entity.Tasker),
 	}
 }
 
-func (p *persisterMock) HasBeenCalledWith(method string, arg any) bool {
+func (p *taskRepositoryMock) HasBeenCalledWith(method string, arg any) bool {
 	return p.HasBeenCalledTimes(method, arg) > 0
 }
 
-func (p *persisterMock) HasBeenCalledTimes(method string, arg any) uint8 {
+func (p *taskRepositoryMock) HasBeenCalledTimes(method string, arg any) uint8 {
 	times := uint8(0)
 
 	for _, call := range p.calls {
@@ -42,23 +47,41 @@ func (p *persisterMock) HasBeenCalledTimes(method string, arg any) uint8 {
 	return times
 }
 
-func (p *persisterMock) Create() (entity.DbId, error) {
+func (p *taskRepositoryMock) Create() (entity.DbId, error) {
 	p.lastId += 1
 
 	p.calls = append(p.calls, mockCalls{"Create", nil})
 
+	p.taskList[p.lastId] = entity.CreateTask(p.lastId, "", DateMock{})
+
 	return p.lastId, p.createErr
 }
 
-func (p *persisterMock) Save(task entity.Tasker) error {
+func (p *taskRepositoryMock) Save(task entity.Tasker) error {
 	p.calls = append(p.calls, mockCalls{"Save", task})
+
+	p.taskList[task.GetId()] = task
 
 	return p.saverErr
 }
 
-func (p *persisterMock) Delete(entity.DbId) error { panic("todo") }
+func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
+	if p.getErr != nil {
+		return &entity.Task{}, p.getErr
+	}
 
-func createTestTaskManager(persistMock *persisterMock) (TaskManager, TimeRangePersister) {
+	task, taskFound := p.taskList[taskId]
+
+	if !taskFound {
+		return &entity.Task{}, errors.New("task not found")
+	}
+
+	return task, nil
+}
+
+func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
+
+func createTestTaskManager(persistMock *taskRepositoryMock) (TaskManager, TimeRangePersister) {
 	timeRangeRepository := createTimeRangeRepositoryMock()
 
 	taskManager := CreateTaskManager(persistMock, CreateTimeRangeManager(timeRangeRepository, DateMock{}), entity.CreateDate())
@@ -66,13 +89,13 @@ func createTestTaskManager(persistMock *persisterMock) (TaskManager, TimeRangePe
 	return taskManager, timeRangeRepository
 }
 
-func createTestTaskManagerWithMock(persistMock *persisterMock, timeRangePersister TimeRangePersister) TaskManager {
+func createTestTaskManagerWithMock(persistMock *taskRepositoryMock, timeRangePersister TimeRangePersister) TaskManager {
 	return CreateTaskManager(persistMock, CreateTimeRangeManager(timeRangePersister, DateMock{}), entity.CreateDate())
 }
 
 func TestTaskManagerCreate(t *testing.T) {
-	persistMock := createPersisterMock()
-	manager, _ := createTestTaskManager(persistMock)
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
 
 	task, createError := manager.Create("   hello     ")
 
@@ -80,11 +103,11 @@ func TestTaskManagerCreate(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	if !persistMock.HasBeenCalledWith("Save", task) {
+	if !taskRepositoryMock.HasBeenCalledWith("Save", task) {
 		t.Error("should have called \"save\"")
 	}
 
-	if persistMock.HasBeenCalledTimes("Save", task) != 1 {
+	if taskRepositoryMock.HasBeenCalledTimes("Save", task) != 1 {
 		t.Error("should have called \"save\" 1 time")
 	}
 
@@ -92,13 +115,13 @@ func TestTaskManagerCreate(t *testing.T) {
 		t.Errorf("the name should be \"hello\n, it is %s", task.GetName())
 	}
 
-	if !persistMock.HasBeenCalledWith("Create", nil) {
+	if !taskRepositoryMock.HasBeenCalledWith("Create", nil) {
 		t.Error("should have called create")
 	}
 }
 
 func TestTaskManagerCreateError(t *testing.T) {
-	persistMock := createPersisterMock()
+	persistMock := createTaskRepositoryMock()
 	expectedErr := errors.New("create error")
 
 	persistMock.createErr = expectedErr
@@ -121,7 +144,7 @@ func TestTaskManagerCreateError(t *testing.T) {
 }
 
 func TestTaskManagerStart(t *testing.T) {
-	persistMock := createPersisterMock()
+	persistMock := createTaskRepositoryMock()
 
 	manager, _ := createTestTaskManager(persistMock)
 
@@ -141,7 +164,10 @@ func TestTaskManagerStart(t *testing.T) {
 }
 
 func TestTaskManagerStartNotFound(t *testing.T) {
-	persistMock := createPersisterMock()
+	expectedErr := errors.New("task not found")
+
+	persistMock := createTaskRepositoryMock()
+	persistMock.getErr = expectedErr
 
 	manager, _ := createTestTaskManager(persistMock)
 
@@ -153,13 +179,13 @@ func TestTaskManagerStartNotFound(t *testing.T) {
 
 	startErr := manager.Start(-1)
 
-	if !errors.Is(startErr, TaskManagerTaskNotFoundErr) {
+	if !errors.Is(startErr, expectedErr) {
 		t.Error("should return an error")
 	}
 }
 
 func TestTaskManagerStartAlreadyRunning(t *testing.T) {
-	persistMock := createPersisterMock()
+	persistMock := createTaskRepositoryMock()
 
 	manager, timeRangeRepository := createTestTaskManager(persistMock)
 
@@ -197,7 +223,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 func TestTaskManagerStartTimeRangeError(t *testing.T) {
 	expectedError := errors.New("cannot create")
 
-	persistMock := createPersisterMock()
+	persistMock := createTaskRepositoryMock()
 	timeRangeRepoMock := createTimeRangeRepositoryMock()
 	timeRangeRepoMock.createError = expectedError
 
@@ -213,45 +239,48 @@ func TestTaskManagerStartTimeRangeError(t *testing.T) {
 }
 
 func TestTaskManagerSave(t *testing.T) {
-	persisterMock := createPersisterMock()
+	persistMock := createTaskRepositoryMock()
 
-	manager, _ := createTestTaskManager(persisterMock)
+	manager, _ := createTestTaskManager(persistMock)
 
 	task, _ := manager.Create("my task")
 
-	if !persisterMock.HasBeenCalledWith("Save", task) {
+	if !persistMock.HasBeenCalledWith("Save", task) {
 		t.Error("should have called \"save\"")
 	}
 
-	if persisterMock.HasBeenCalledTimes("Save", task) != 1 {
+	if persistMock.HasBeenCalledTimes("Save", task) != 1 {
 		t.Error("should have called \"save\" 1 time")
 	}
 
 	manager.Save(task.GetId())
 
-	if persisterMock.HasBeenCalledTimes("Save", task) != 2 {
+	if persistMock.HasBeenCalledTimes("Save", task) != 2 {
 		t.Error("should have called \"save\" 2 times")
 	}
 }
 
 func TestTaskManagerSaveTaskNotFound(t *testing.T) {
-	persisterMock := createPersisterMock()
+	expectedErr := errors.New("task not found")
+	taskRepositoryMock := createTaskRepositoryMock()
 
-	manager, _ := createTestTaskManager(persisterMock)
+	manager, _ := createTestTaskManager(taskRepositoryMock)
 
 	task, _ := manager.Create("my task")
 
-	if !persisterMock.HasBeenCalledWith("Save", task) {
+	if !taskRepositoryMock.HasBeenCalledWith("Save", task) {
 		t.Error("should have called \"save\"")
 	}
 
-	if persisterMock.HasBeenCalledTimes("Save", task) != 1 {
+	if taskRepositoryMock.HasBeenCalledTimes("Save", task) != 1 {
 		t.Error("should have called \"save\" 1 time")
 	}
 
+	taskRepositoryMock.getErr = expectedErr
+
 	saveErr := manager.Save(-1)
 
-	if !errors.Is(saveErr, TaskManagerTaskNotFoundErr) {
+	if !errors.Is(saveErr, expectedErr) {
 		t.Error("should have returned an error")
 	}
 }
@@ -259,9 +288,9 @@ func TestTaskManagerSaveTaskNotFound(t *testing.T) {
 func TestTaskManagerSaveRepositoryError(t *testing.T) {
 	expectedError := errors.New("create error")
 
-	persisterMock := createPersisterMock()
+	taskRepositoryMock := createTaskRepositoryMock()
 
-	manager, _ := createTestTaskManager(persisterMock)
+	manager, _ := createTestTaskManager(taskRepositoryMock)
 
 	task, createErr := manager.Create("my task")
 
@@ -269,7 +298,7 @@ func TestTaskManagerSaveRepositoryError(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	persisterMock.saverErr = expectedError
+	taskRepositoryMock.saverErr = expectedError
 
 	saveErr := manager.Save(task.GetId())
 

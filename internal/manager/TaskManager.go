@@ -6,13 +6,13 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/entity"
 )
 
-var TaskManagerTaskNotFoundErr = errors.New("task not found")
 var TaskManagerTaskRunningErr = errors.New("task already running")
 
 type TaskPersister interface {
 	Create() (entity.DbId, error)
 	Save(entity.Tasker) error
 	Delete(entity.DbId) error
+	Get(entity.DbId) (entity.Tasker, error)
 }
 
 type TaskManager interface {
@@ -27,8 +27,6 @@ func CreateTaskManager(persister TaskPersister, timeRangeManager TimeRangeManage
 		taskRepository:   persister,
 		date:             date,
 		timeRangeManager: timeRangeManager,
-
-		tasks: make(map[entity.DbId]entity.Tasker),
 	}
 }
 
@@ -36,8 +34,6 @@ type TaskManagement struct {
 	taskRepository   TaskPersister
 	timeRangeManager TimeRangeManager
 	date             entity.Dater
-
-	tasks map[entity.DbId]entity.Tasker
 }
 
 var _ TaskManager = &TaskManagement{}
@@ -51,18 +47,16 @@ func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
 
 	task := entity.CreateTask(taskId, name, tm.date)
 
-	tm.tasks[task.GetId()] = task
-
 	tm.taskRepository.Save(task)
 
 	return task, nil
 }
 
 func (tm *TaskManagement) Start(taskId entity.DbId) error {
-	task, taskFound := tm.tasks[taskId]
+	task, getErr := tm.taskRepository.Get(taskId)
 
-	if !taskFound {
-		return TaskManagerTaskNotFoundErr
+	if getErr != nil {
+		return getErr
 	}
 
 	if task.IsRunning() {
@@ -83,10 +77,10 @@ func (tm *TaskManagement) Start(taskId entity.DbId) error {
 }
 
 func (tm *TaskManagement) Save(taskId entity.DbId) error {
-	task, taskFound := tm.tasks[taskId]
+	task, getErr := tm.taskRepository.Get(taskId)
 
-	if !taskFound {
-		return TaskManagerTaskNotFoundErr
+	if getErr != nil {
+		return getErr
 	}
 
 	return tm.taskRepository.Save(task)

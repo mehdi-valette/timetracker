@@ -7,7 +7,7 @@ var TaskDurationImpossibleErr = errors.New("The current time is below the time o
 var TaskTwoUnfinishedTimeRangeErr = errors.New("There are two unfinished time ranges")
 
 func CreateTask(id DbId, name string, date Dater) Tasker {
-	return &task{
+	return &Task{
 		id:         id,
 		name:       CreateProperNoun(name),
 		date:       date,
@@ -25,32 +25,32 @@ type Tasker interface {
 	GetId() DbId
 }
 
-type task struct {
+type Task struct {
 	id         DbId
 	name       ProperNoun
 	date       Dater
 	timeRanges map[DbId]TimeRanger
 }
 
-var _ Tasker = &task{}
+var _ Tasker = &Task{}
 
-func (t *task) Rename(newName string) {
+func (t *Task) Rename(newName string) {
 	t.name = CreateProperNoun(newName)
 }
 
-func (t task) GetId() DbId {
+func (t Task) GetId() DbId {
 	return t.id
 }
 
-func (t task) GetName() ProperNoun {
+func (t Task) GetName() ProperNoun {
 	return t.name
 }
 
-func (t *task) SetTimeRange(timeRange TimeRanger) {
+func (t *Task) SetTimeRange(timeRange TimeRanger) {
 	t.timeRanges[timeRange.GetId()] = timeRange
 }
 
-func (t task) GetTimeRange(id DbId) (TimeRanger, error) {
+func (t Task) GetTimeRange(id DbId) (TimeRanger, error) {
 	timeRange, found := t.timeRanges[id]
 
 	if !found {
@@ -60,7 +60,7 @@ func (t task) GetTimeRange(id DbId) (TimeRanger, error) {
 	return timeRange, nil
 }
 
-func (t *task) Duration() (Duration, error) {
+func (t *Task) Duration() (Duration, error) {
 	totalDuration := Duration(0)
 
 	firstUnfinishedtimeRange := true
@@ -92,7 +92,7 @@ func (t *task) Duration() (Duration, error) {
 	return totalDuration, nil
 }
 
-func (t task) IsRunning() bool {
+func (t Task) IsRunning() bool {
 
 	countNotRunning := 0
 

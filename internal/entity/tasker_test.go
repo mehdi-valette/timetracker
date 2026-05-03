@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-func createTestTask() (*task, *DaterMock) {
+func createTestTask() (*Task, *DaterMock) {
 	mockDater := &DaterMock{}
 
-	return CreateTask(0, "my task", mockDater).(*task), mockDater
+	return CreateTask(0, "my task", mockDater).(*Task), mockDater
 }
 
 func TestCreateTask(t *testing.T) {
-	task := CreateTask(1, "   test    ", date{}).(*task)
+	task := CreateTask(1, "   test    ", date{}).(*Task)
 
 	if len(task.timeRanges) != 0 || task.name != "test" || task.id != 1 {
 		t.Errorf("Shoudl have no time ranges, name=test and id=1, got %+v", task)
@@ -23,40 +23,40 @@ func TestCreateTask(t *testing.T) {
 
 func TestTaskIsEqual(t *testing.T) {
 	type TestCase struct {
-		task1    task
-		task2    task
+		task1    Task
+		task2    Task
 		expected bool
 	}
 
 	cases := []TestCase{
 		{
-			task{
+			Task{
 				id:   2,
 				name: ProperNoun("test"),
 			},
-			task{
+			Task{
 				id:   3,
 				name: ProperNoun("test2"),
 			},
 			false,
 		},
 		{
-			task{
+			Task{
 				id:   2,
 				name: ProperNoun("test"),
 			},
-			task{
+			Task{
 				id:   3,
 				name: ProperNoun("test"),
 			},
 			false,
 		},
 		{
-			task{
+			Task{
 				id:   2,
 				name: ProperNoun("test"),
 			},
-			task{
+			Task{
 				id:   2,
 				name: ProperNoun("test"),
 			},
