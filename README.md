@@ -83,10 +83,20 @@ The task manager interacts with the _time range manager_ to manage the time rang
 
 The _time range manager_ manages time ranges. It makes sure that a time range is always attributed to a task, and calculates the duration of its range.
 
-# Sequence
+# Diagrams
+
+## Relations
 
 ```mermaid
+erDiagram
 
+Task || -- o{ TimeRange : contains
+
+```
+
+## Sequence
+
+```mermaid
 sequenceDiagram
 
 participant C@{type: boundary} as Command Line
