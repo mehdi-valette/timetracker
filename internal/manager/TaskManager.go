@@ -6,7 +6,8 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/entity"
 )
 
-var TaskNotFoundErr = errors.New("task not found")
+var TaskManagerTaskNotFoundErr = errors.New("task not found")
+var TaskManagerTaskRunningErr = errors.New("task already running")
 
 type TaskPersister interface {
 	Create() (entity.DbId, error)
@@ -52,18 +53,20 @@ func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
 
 	tm.tasks[task.GetId()] = task
 
+	tm.taskRepository.Save(task)
+
 	return task, nil
 }
 
-func (tm *TaskManagement) Start(id entity.DbId) error {
-	task, taskFound := tm.tasks[id]
+func (tm *TaskManagement) Start(taskId entity.DbId) error {
+	task, taskFound := tm.tasks[taskId]
 
 	if !taskFound {
-		return TaskNotFoundErr
+		return TaskManagerTaskNotFoundErr
 	}
 
 	if task.IsRunning() {
-		return nil
+		return TaskManagerTaskRunningErr
 	}
 
 	timeRange, timeRangeErr := tm.timeRangeManager.Create(task.GetId())
@@ -79,8 +82,14 @@ func (tm *TaskManagement) Start(id entity.DbId) error {
 	return nil
 }
 
-func (tm *TaskManagement) Save(id entity.DbId) error {
-	panic("todo")
+func (tm *TaskManagement) Save(taskId entity.DbId) error {
+	task, taskFound := tm.tasks[taskId]
+
+	if !taskFound {
+		return TaskManagerTaskNotFoundErr
+	}
+
+	return tm.taskRepository.Save(task)
 }
 
 func (tm *TaskManagement) Stop(id entity.DbId) error {
