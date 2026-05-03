@@ -11,6 +11,7 @@ var TimeRangeManagerTimeRangeNotFoundErr = errors.New("cannot find the time rang
 type TimeRangePersister interface {
 	Create(taskId entity.DbId) (entity.DbId, error)
 	Save(timeRange entity.TimeRanger) error
+	Get(timeRangeId entity.DbId) (entity.TimeRanger, error)
 	Delete(id entity.DbId) error
 	ListByTaskId(taskId entity.DbId) []entity.TimeRanger
 }
@@ -19,26 +20,20 @@ type TimeRangeManager interface {
 	Create(taskId entity.DbId) (entity.TimeRanger, error)
 	Start(id entity.DbId) error
 	Stop(id entity.DbId) error
-	Save(id entity.DbId) error
+	Save(timeRange entity.TimeRanger) error
 }
 
 type TimeRangeManagement struct {
 	repository TimeRangePersister
-	timeRanges map[entity.DbId]entity.TimeRanger
 	date       entity.Dater
-
-	// timeRange ID => task ID
-	timeRangeToTask map[entity.DbId]entity.DbId
 }
 
 var _ TimeRangeManager = &TimeRangeManagement{}
 
 func CreateTimeRangeManager(repo TimeRangePersister, date entity.Dater) TimeRangeManager {
 	return &TimeRangeManagement{
-		repository:      repo,
-		date:            date,
-		timeRanges:      make(map[entity.DbId]entity.TimeRanger),
-		timeRangeToTask: make(map[entity.DbId]entity.DbId),
+		repository: repo,
+		date:       date,
 	}
 }
 
@@ -51,18 +46,16 @@ func (trm *TimeRangeManagement) Create(taskId entity.DbId) (entity.TimeRanger, e
 
 	timeRange := entity.CreateTimeRange(id, taskId, trm.date)
 
-	trm.timeRanges[timeRange.GetId()] = timeRange
-
 	trm.repository.Save(timeRange)
 
 	return timeRange, createError
 }
 
 func (trm *TimeRangeManagement) Start(id entity.DbId) error {
-	timeRange, found := trm.timeRanges[id]
+	timeRange, getErr := trm.repository.Get(id)
 
-	if !found {
-		return TimeRangeManagerTimeRangeNotFoundErr
+	if getErr != nil {
+		return getErr
 	}
 
 	timeRange.Start()
@@ -71,9 +64,9 @@ func (trm *TimeRangeManagement) Start(id entity.DbId) error {
 }
 
 func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
-	timeRange, found := trm.timeRanges[id]
+	timeRange, getErr := trm.repository.Get(id)
 
-	if !found {
+	if getErr != nil {
 		return TimeRangeManagerTimeRangeNotFoundErr
 	}
 
@@ -83,29 +76,9 @@ func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
 }
 
 func (trm *TimeRangeManagement) Delete(id entity.DbId) error {
-	_, found := trm.timeRanges[id]
-
-	if !found {
-		return TimeRangeManagerTimeRangeNotFoundErr
-	}
-
-	deleteErr := trm.repository.Delete(id)
-
-	if deleteErr != nil {
-		return deleteErr
-	}
-
-	delete(trm.timeRanges, id)
-
-	return nil
+	return trm.repository.Delete(id)
 }
 
-func (trm *TimeRangeManagement) Save(id entity.DbId) error {
-	timeRange, found := trm.timeRanges[id]
-
-	if !found {
-		return TimeRangeManagerTimeRangeNotFoundErr
-	}
-
+func (trm *TimeRangeManagement) Save(timeRange entity.TimeRanger) error {
 	return trm.repository.Save(timeRange)
 }

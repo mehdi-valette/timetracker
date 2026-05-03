@@ -9,7 +9,7 @@ var TimeRangeDurationNoStartErr = errors.New("no start value")
 var TimeRangeDurationEndBeforeStartErr = errors.New("end before start")
 
 func CreateTimeRange(id DbId, taskId DbId, date Dater) TimeRanger {
-	return &timeRange{
+	return &TimeRange{
 		date:   date,
 		end:    Timestamp{},
 		id:     id,
@@ -30,7 +30,7 @@ type TimeRanger interface {
 	Start()
 }
 
-type timeRange struct {
+type TimeRange struct {
 	date            Dater
 	end             Timestamp
 	id              DbId
@@ -40,9 +40,9 @@ type timeRange struct {
 	taskId          DbId
 }
 
-var _ TimeRanger = &timeRange{}
+var _ TimeRanger = &TimeRange{}
 
-func (tr timeRange) Duration() (Duration, error) {
+func (tr TimeRange) Duration() (Duration, error) {
 	if !tr.rangeHasStarted {
 		return 0, TimeRangeDurationNoStartErr
 	}
@@ -58,36 +58,36 @@ func (tr timeRange) Duration() (Duration, error) {
 	return Duration(tr.end.GetSeconds() - tr.start.GetSeconds()), nil
 }
 
-func (tr *timeRange) GetEnd() Timestamp {
+func (tr *TimeRange) GetEnd() Timestamp {
 	return tr.end
 }
 
-func (tr timeRange) GetId() DbId {
+func (tr TimeRange) GetId() DbId {
 	return tr.id
 }
 
-func (tr timeRange) GetStart() Timestamp {
+func (tr TimeRange) GetStart() Timestamp {
 	return tr.start
 }
 
-func (tr timeRange) GetTaskId() DbId {
+func (tr TimeRange) GetTaskId() DbId {
 	return tr.taskId
 }
 
-func (tr *timeRange) End() {
+func (tr *TimeRange) End() {
 	tr.end = tr.date.Now()
 	tr.rangeHasEnded = true
 }
 
-func (tr timeRange) HasEnded() bool {
+func (tr TimeRange) HasEnded() bool {
 	return tr.rangeHasEnded
 }
 
-func (tr timeRange) HasStated() bool {
+func (tr TimeRange) HasStated() bool {
 	return tr.rangeHasStarted
 }
 
-func (tr *timeRange) Start() {
+func (tr *TimeRange) Start() {
 	tr.start = tr.date.Now()
 	tr.rangeHasStarted = true
 }

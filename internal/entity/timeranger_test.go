@@ -41,7 +41,7 @@ func TestCreateTimeRange(t *testing.T) {
 }
 
 func TestTimeRangeDurationSuccess(t *testing.T) {
-	timerange := timeRange{
+	timerange := TimeRange{
 		id:              1,
 		rangeHasStarted: true,
 		rangeHasEnded:   true,
@@ -59,7 +59,7 @@ func TestTimeRangeDurationSuccess(t *testing.T) {
 }
 
 func TestTimeRangeDurationNoStart(t *testing.T) {
-	timerange := timeRange{
+	timerange := TimeRange{
 		id:    1,
 		start: CreateTimestampSeconds(1000),
 		end:   CreateTimestampSeconds(0),
@@ -85,7 +85,7 @@ func TestTimeRangeDurationNoEnd(t *testing.T) {
 }
 
 func TestTimeRangeDurationEndBeforeStart(t *testing.T) {
-	timerange := timeRange{
+	timerange := TimeRange{
 		id:              1,
 		rangeHasStarted: true,
 		rangeHasEnded:   true,
@@ -105,7 +105,7 @@ func TestTimeRangeDurationEndBeforeStart(t *testing.T) {
 }
 
 func TestTimeRangeDurationEndEqualsStart(t *testing.T) {
-	timerange := timeRange{
+	timerange := TimeRange{
 		id:              1,
 		rangeHasStarted: true,
 		rangeHasEnded:   true,

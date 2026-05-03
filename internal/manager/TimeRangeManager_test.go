@@ -34,6 +34,7 @@ type timeRangeRepositoryMock struct {
 	countSaveCalls   uint8
 	createError      error
 	deleteError      error
+	getErr           error
 	lastId           entity.DbId
 	saveError        error
 	timeRanges       map[entity.DbId]entity.TimeRanger
@@ -67,6 +68,20 @@ func (trrm *timeRangeRepositoryMock) Save(timeRange entity.TimeRanger) error {
 	trrm.timeRanges[timeRange.GetId()] = timeRange
 
 	return trrm.saveError
+}
+
+func (trrm *timeRangeRepositoryMock) Get(timeRangeId entity.DbId) (entity.TimeRanger, error) {
+	if trrm.getErr != nil {
+		return &entity.TimeRange{}, trrm.getErr
+	}
+
+	timeRange, found := trrm.timeRanges[timeRangeId]
+
+	if !found {
+		return &entity.TimeRange{}, errors.New("not found")
+	}
+
+	return timeRange, nil
 }
 
 func (trrm *timeRangeRepositoryMock) Delete(id entity.DbId) error {
@@ -304,9 +319,9 @@ func TestTimeRangeManagerDelete(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	_, foundBeforeDelete := manager.timeRanges[timeRange.GetId()]
+	_, firstGetErr := repoMock.Get(timeRange.GetId())
 
-	if !foundBeforeDelete {
+	if firstGetErr != nil {
 		t.Error("should find the time range")
 	}
 
@@ -320,38 +335,14 @@ func TestTimeRangeManagerDelete(t *testing.T) {
 		t.Error("should not have returned an error")
 	}
 
-	_, foundAfterDelete := manager.timeRanges[timeRange.GetId()]
+	_, secondGetErr := repoMock.Get(timeRange.GetId())
 
-	if foundAfterDelete {
+	if secondGetErr != nil {
 		t.Error("should not find the time range")
 	}
 
 	if !repoMock.HasBeenCalledWith("Delete", timeRange.GetId()) {
 		t.Error("should have called delete once")
-	}
-}
-
-func TestTimeRangeManagerDeleteNotFound(t *testing.T) {
-	repoMock := createTimeRangeRepositoryMock()
-
-	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
-
-	timeRange, createErr := manager.Create(0)
-
-	if createErr != nil {
-		t.Error("should not return an error")
-	}
-
-	errorFirstDelete := manager.Delete(timeRange.GetId())
-
-	if errorFirstDelete != nil {
-		t.Error("should not have returned an error")
-	}
-
-	errorSecondDelete := manager.Delete(timeRange.GetId())
-
-	if !errors.Is(errorSecondDelete, TimeRangeManagerTimeRangeNotFoundErr) {
-		t.Error("should have returned a not found error")
 	}
 }
 
@@ -387,7 +378,7 @@ func TestTimeRangeManagerSave(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	errorSave := manager.Save(timeRange.GetId())
+	errorSave := manager.Save(timeRange)
 
 	if errorSave != nil {
 		t.Error("should not have returned an error")
@@ -395,24 +386,6 @@ func TestTimeRangeManagerSave(t *testing.T) {
 
 	if !repoMock.HasBeenCalledWith("Save", timeRange) {
 		t.Error("should have called save")
-	}
-}
-
-func TestTimeRangeManagerSaveNotFound(t *testing.T) {
-	repoMock := createTimeRangeRepositoryMock()
-
-	manager := CreateTimeRangeManager(repoMock, DateMock{}).(*TimeRangeManagement)
-
-	_, createErr := manager.Create(0)
-
-	if createErr != nil {
-		t.Error("should not return an error")
-	}
-
-	errorDelete := manager.Save(-1)
-
-	if !errors.Is(errorDelete, TimeRangeManagerTimeRangeNotFoundErr) {
-		t.Error("should have returned a delete error")
 	}
 }
 
@@ -430,7 +403,7 @@ func TestTimeRangeManagerSaveError(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	errorDelete := manager.Save(timeRange.GetId())
+	errorDelete := manager.Save(timeRange)
 
 	if !errors.Is(errorDelete, expectedErr) {
 		t.Error("should have returned a delete error")
