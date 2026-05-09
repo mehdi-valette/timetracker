@@ -29,40 +29,13 @@ CLI application for time tracking.
 - Data persisted in an SQLite file
 - Single user, no password to protect the data
 
-## Types
-
-```go
-type DbId int8
-
-type Name string
-
-type Task struct {
-  id        DbId
-  name      Name
-}
-
-type TaskManager interface {
-  start(name string)
-  stop(name string)
-  delete(name string)
-  duration(name string) Duration
-}
-
-type TimeRage struct {
-  id      DbId
-  taskId  DbId
-  begin   time.Time
-  end     time.Time
-}
-```
-
 # Architecture
 
 ## Command Interpreter
 
 The _command interpreter_ parses user input and sends the appropriate command to the _task manager_.
 
-To facilitate its usage, the _command interpreter_ remembers the last task written by the user. For example, a command "stop" that follows "start hello" is interpreted as "stop hello"
+To facilitate its usage, the _command interpreter_ remembers the last task written by the user. For example, when a command "start hello" is followed by "stop", the last command is interpreted as "stop hello"
 
 The following commands are supported:
 
