@@ -81,7 +81,7 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 
 func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
 
-func createTestTaskManager(persistMock *taskRepositoryMock) (TaskManager, TimeRangePersister) {
+func createTestTaskManager(persistMock *taskRepositoryMock) (TaskManager, *timeRangeRepositoryMock) {
 	timeRangeRepository := createTimeRangeRepositoryMock()
 
 	taskManager := CreateTaskManager(persistMock, CreateTimeRangeManager(timeRangeRepository, DateMock{}), entity.CreateDate())
@@ -304,5 +304,117 @@ func TestTaskManagerSaveRepositoryError(t *testing.T) {
 
 	if !errors.Is(saveErr, expectedError) {
 		t.Error("should have returned an error")
+	}
+}
+
+func TestTaskManagerStop(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	task, _ := manager.Create("my task")
+
+	manager.Start(task.GetId())
+
+	if !task.IsRunning() {
+		t.Error("the task should be running")
+	}
+
+	stopErr := manager.Stop(task.GetId())
+
+	if stopErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if task.IsRunning() {
+		t.Error("the task should not be running")
+	}
+}
+
+func TestTaskManagerStopNotRunning(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+
+	taskManager, _ := createTestTaskManager(taskRepositoryMock)
+
+	task, _ := taskManager.Create("my task")
+
+	taskManager.Start(task.GetId())
+
+	if !task.IsRunning() {
+		t.Error("the task should be running")
+	}
+
+	taskManager.Stop(task.GetId())
+
+	if task.IsRunning() {
+		t.Error("the task should not be running")
+	}
+
+	stopErr := taskManager.Stop(task.GetId())
+
+	if stopErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if task.IsRunning() {
+		t.Error("the task should not be running")
+	}
+}
+
+func TestTaskManagerStopNeverBegan(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+
+	taskManager, _ := createTestTaskManager(taskRepositoryMock)
+
+	task, _ := taskManager.Create("my task")
+
+	if task.IsRunning() {
+		t.Error("the task should not be running")
+	}
+
+	stopErr := taskManager.Stop(task.GetId())
+
+	if stopErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if task.IsRunning() {
+		t.Error("the task should not be running")
+	}
+}
+
+func TestTaskManagerStopRepositoryError(t *testing.T) {
+	expectedErr := errors.New("task not found")
+	taskRepositoryMock := createTaskRepositoryMock()
+	taskRepositoryMock.getErr = expectedErr
+
+	taskManager, _ := createTestTaskManager(taskRepositoryMock)
+
+	stopErr := taskManager.Stop(0)
+
+	if !errors.Is(stopErr, expectedErr) {
+		t.Error("should return an error")
+	}
+}
+
+func TestTaskManagerStopTimeRangeManagerError(t *testing.T) {
+	expectedErr := errors.New("not found")
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, timeRangeRepoMock := createTestTaskManager(taskRepositoryMock)
+
+	timeRangeRepoMock.saveError = expectedErr
+
+	task, _ := manager.Create("my task")
+
+	manager.Start(task.GetId())
+
+	if !task.IsRunning() {
+		t.Error("the task should be running")
+	}
+
+	stopErr := manager.Stop(task.GetId())
+
+	if !errors.Is(stopErr, expectedErr) {
+		t.Error("should return an error")
 	}
 }

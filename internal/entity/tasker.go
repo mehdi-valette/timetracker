@@ -11,14 +11,15 @@ func CreateTask(id DbId, name string, date Dater) Tasker {
 		id:         id,
 		name:       CreateProperNoun(name),
 		date:       date,
-		timeRanges: make(map[DbId]TimeRanger),
+		timeRanges: make([]TimeRanger, 0),
 	}
 }
 
 type Tasker interface {
 	Rename(newName string)
 	SetTimeRange(timeRange TimeRanger)
-	GetTimeRange(id DbId) (TimeRanger, error)
+	GetTimeRangeById(id DbId) (TimeRanger, error)
+	GetLastTimeRange() (TimeRanger, error)
 	Duration() (Duration, error)
 	IsRunning() bool
 	GetName() ProperNoun
@@ -29,7 +30,7 @@ type Task struct {
 	id         DbId
 	name       ProperNoun
 	date       Dater
-	timeRanges map[DbId]TimeRanger
+	timeRanges []TimeRanger
 }
 
 var _ Tasker = &Task{}
@@ -47,17 +48,27 @@ func (t Task) GetName() ProperNoun {
 }
 
 func (t *Task) SetTimeRange(timeRange TimeRanger) {
-	t.timeRanges[timeRange.GetId()] = timeRange
+	t.timeRanges = append(t.timeRanges, timeRange)
 }
 
-func (t Task) GetTimeRange(id DbId) (TimeRanger, error) {
-	timeRange, found := t.timeRanges[id]
+func (t Task) GetTimeRangeById(timeRangeId DbId) (TimeRanger, error) {
+	for _, timeRange := range t.timeRanges {
+		if timeRange.GetId() == timeRangeId {
+			return timeRange, nil
+		}
+	}
 
-	if !found {
+	return nil, TaskTimeRangeNotFoundErr
+}
+
+func (t Task) GetLastTimeRange() (TimeRanger, error) {
+	lastIndex := len(t.timeRanges) - 1
+
+	if lastIndex < 0 {
 		return nil, TaskTimeRangeNotFoundErr
 	}
 
-	return timeRange, nil
+	return t.timeRanges[lastIndex], nil
 }
 
 func (t *Task) Duration() (Duration, error) {

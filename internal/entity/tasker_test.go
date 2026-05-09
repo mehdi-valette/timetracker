@@ -109,7 +109,7 @@ func TestTaskGetTimeRange(t *testing.T) {
 
 	task.SetTimeRange(timeRange)
 
-	firstGet, err := task.GetTimeRange(12)
+	firstGet, err := task.GetTimeRangeById(12)
 
 	if err != nil {
 		t.Errorf("should get a time range")
@@ -117,7 +117,7 @@ func TestTaskGetTimeRange(t *testing.T) {
 
 	firstGet.End()
 
-	secondGet, err := task.GetTimeRange(12)
+	secondGet, err := task.GetTimeRangeById(12)
 
 	if err != nil {
 		t.Errorf("should get a time range")
@@ -134,10 +134,40 @@ func TestTaskGetTimeRange(t *testing.T) {
 func TestTaskGetTimeRangeNotFound(t *testing.T) {
 	task, _ := createTestTask()
 
-	_, err := task.GetTimeRange(0)
+	_, err := task.GetTimeRangeById(0)
 
 	if !errors.Is(err, TaskTimeRangeNotFoundErr) {
 		t.Errorf("should return not found error")
+	}
+}
+
+func TestTaskGetLastTimeRange(t *testing.T) {
+	task, dater := createTestTask()
+
+	firstTimeRange := CreateTimeRange(0, task.GetId(), dater)
+	secondTimeRange := CreateTimeRange(1, task.GetId(), dater)
+
+	task.SetTimeRange(firstTimeRange)
+	task.SetTimeRange(secondTimeRange)
+
+	timeRange, getErr := task.GetLastTimeRange()
+
+	if getErr != nil {
+		t.Error("should not return an error")
+	}
+
+	if timeRange.GetId() != secondTimeRange.GetId() {
+		t.Error("should have returned the second time range")
+	}
+}
+
+func TestTaskGetLastTimeRangeError(t *testing.T) {
+	task, _ := createTestTask()
+
+	_, getErr := task.GetLastTimeRange()
+
+	if !errors.Is(getErr, TaskTimeRangeNotFoundErr) {
+		t.Error("should return an error")
 	}
 }
 

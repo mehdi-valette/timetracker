@@ -7,6 +7,7 @@ import (
 )
 
 var TaskManagerTaskRunningErr = errors.New("task already running")
+var TaskManagerTaskStoppedErr = errors.New("task already running")
 
 type TaskPersister interface {
 	Create() (entity.DbId, error)
@@ -86,6 +87,24 @@ func (tm *TaskManagement) Save(taskId entity.DbId) error {
 	return tm.taskRepository.Save(task)
 }
 
-func (tm *TaskManagement) Stop(id entity.DbId) error {
-	panic("todo")
+func (tm *TaskManagement) Stop(taskId entity.DbId) error {
+	task, repoErr := tm.taskRepository.Get(taskId)
+
+	if repoErr != nil {
+		return repoErr
+	}
+
+	timeRange, getErr := task.GetLastTimeRange()
+
+	if errors.Is(getErr, entity.TaskTimeRangeNotFoundErr) {
+		return nil
+	}
+
+	stopErr := tm.timeRangeManager.Stop(timeRange.GetId())
+
+	if stopErr != nil {
+		return stopErr
+	}
+
+	return nil
 }
