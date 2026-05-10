@@ -31,6 +31,20 @@ CLI application for time tracking.
 
 # Architecture
 
+## Entities
+
+Entities are the basic building blocks of the application. Some entities, such as DbId, are simple aliases to native types. Others are interfaces implemented by structures, such as Tasker and TimeRanger.
+
+They are responsible for handling the logic of individual entities (e.g. a *time range* cannot end before it started)
+
+## Managers
+
+The _task manager_ and *time range manager* manage, respectively, the tasks and time ranges. They are responsible to handle the logic of the tasks and time ranges as a whole (e.g. list all the tasks)
+
+## Repositories
+
+*task manager* and *time range manager* each have a corresponding repository. These repositories are responsible for interacting with an SQLite database to retrieve and persist the data handled by the managers. They do not handle logic per say.
+
 ## Command Interpreter
 
 The _command interpreter_ parses user input and sends the appropriate command to the _task manager_.
@@ -43,18 +57,7 @@ The following commands are supported:
 - **start [name]**: start a new time range entry for _name_
 - **stop [name]**: stop the last time range entry for _name_
 - **begin [name]**: shortcut for _create_ and _start_
-- **delete [name]**: delete the task _name_
 - **list**: list all tasks and their duration
-
-## Task Manager
-
-The _task manager_ manages tasks. Each task can be seen as a named collection of time ranges.
-
-The task manager interacts with the _time range manager_ to manage the time ranges attributed to the task. It also calculates the duration of the task.
-
-## Time Range Manager
-
-The _time range manager_ manages time ranges. It makes sure that a time range is always attributed to a task, and calculates the duration of its range.
 
 # Diagrams
 
