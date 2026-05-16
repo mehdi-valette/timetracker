@@ -14,6 +14,7 @@ type TaskPersister interface {
 	Save(entity.Tasker) error
 	Delete(entity.DbId) error
 	Get(entity.DbId) (entity.Tasker, error)
+	List() ([]entity.Tasker, error)
 }
 
 type TaskManager interface {

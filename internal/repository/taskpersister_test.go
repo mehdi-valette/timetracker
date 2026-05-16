@@ -178,3 +178,47 @@ func TestTaskRepositoryDeleteNonExistent(t *testing.T) {
 		t.Error("expected an error")
 	}
 }
+
+func TestTaskRepositoryList(t *testing.T) {
+	names := []string{"task one", "task two", "task three"}
+
+	conn := DbConnection{}
+	conn.Connect(":memory:")
+	conn.InitializeDb()
+
+	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+
+	taskIds := make([]entity.DbId, 0, len(names))
+	tasks := make(map[entity.DbId]entity.Tasker, len(names))
+	for _, name := range names {
+		newId, _ := taskRepo.Create()
+		taskIds = append(taskIds, newId)
+
+		newTask := entity.CreateTask(newId, name, entity.CreateDate())
+		tasks[newId] = newTask
+
+		taskRepo.Save(newTask)
+	}
+
+	taskList, err := taskRepo.List()
+
+	if err != nil {
+		t.Error(test.NoError(err))
+	}
+
+	if len(taskList) != len(names) {
+		t.Errorf("should have 3 tasks, got %d", len(names))
+	}
+
+	for _, task := range taskList {
+		expectedTask, found := tasks[task.GetId()]
+
+		if !found {
+			t.Errorf("should have found the task %d", task.GetId())
+		}
+
+		if expectedTask.GetName() != task.GetName() {
+			t.Errorf("expected name \"%s\", found \"%s\"", expectedTask.GetName(), task.GetName())
+		}
+	}
+}

@@ -79,7 +79,8 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 	return task, nil
 }
 
-func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
+func (p *taskRepositoryMock) Delete(entity.DbId) error       { panic("todo") }
+func (p *taskRepositoryMock) List() ([]entity.Tasker, error) { panic("todo") }
 
 func createTestTaskManager(persistMock *taskRepositoryMock) (TaskManager, *timeRangeRepositoryMock) {
 	timeRangeRepository := createTimeRangeRepositoryMock()

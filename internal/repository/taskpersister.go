@@ -102,3 +102,45 @@ func (t TaskRepository) Save(task entity.Tasker) error {
 
 	return nil
 }
+
+func (t TaskRepository) List() ([]entity.Tasker, error) {
+	// get the number of entries for future insertion performance
+	countResult := t.conn.QueryOne(`SELECT COUNT(*) FROM "task"`)
+
+	count := 0
+	if err := countResult.Scan(&count); err != nil {
+		return []entity.Tasker{}, err
+	}
+
+	taskList := make([]entity.Tasker, 0, count)
+
+	// query all the tasks from the database
+	selectResult, selectErr := t.conn.QueryMany(`SELECT "id", "name" FROM "task"`)
+
+	if selectErr != nil {
+		return []entity.Tasker{}, selectErr
+	}
+
+	// transform each row into a task
+	parsedResult := struct {
+		id   int64
+		name *string
+	}{}
+
+	for selectResult.Next() {
+		if err := selectResult.Scan(&parsedResult.id, &parsedResult.name); err != nil {
+			return []entity.Tasker{}, err
+		}
+
+		name := ""
+		if parsedResult.name != nil {
+			name = *parsedResult.name
+		}
+
+		task := entity.CreateTask(entity.DbId(parsedResult.id), name, t.date)
+
+		taskList = append(taskList, task)
+	}
+
+	return taskList, nil
+}

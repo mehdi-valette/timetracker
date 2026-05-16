@@ -14,6 +14,7 @@ type DbConnector interface {
 	InitializeDb() error
 	Exec(query string, params ...any) (sql.Result, error)
 	QueryOne(query string, params ...any) *sql.Row
+	QueryMany(query string, params ...any) (*sql.Rows, error)
 }
 
 type DbConnection struct {
@@ -93,4 +94,8 @@ func (conn *DbConnection) Exec(query string, params ...any) (sql.Result, error) 
 
 func (conn *DbConnection) QueryOne(query string, params ...any) *sql.Row {
 	return conn.db.QueryRow(query, params...)
+}
+
+func (conn *DbConnection) QueryMany(query string, params ...any) (*sql.Rows, error) {
+	return conn.db.Query(query, params...)
 }
