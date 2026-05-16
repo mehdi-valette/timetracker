@@ -129,7 +129,7 @@ func TestTimeRangeManagerCreate(t *testing.T) {
 		t.Errorf("should have returned the time range of the repo")
 	}
 
-	if timeRange.HasStated() {
+	if timeRange.HasStarted() {
 		t.Errorf("time range should not have started")
 	}
 
@@ -178,7 +178,7 @@ func TestTimeRangeManagerStart(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	if !timeRange.HasStated() {
+	if !timeRange.HasStarted() {
 		t.Error("time range should have started")
 	}
 
@@ -226,7 +226,7 @@ func TestTimeRangeManagerStartError(t *testing.T) {
 		t.Error("should have returned an error")
 	}
 
-	if !timeRange.HasStated() {
+	if !timeRange.HasStarted() {
 		t.Error("time range should not have started")
 	}
 }

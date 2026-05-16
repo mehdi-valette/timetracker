@@ -35,7 +35,7 @@ func TestCreateTimeRange(t *testing.T) {
 		t.Errorf("should belong to a task from creation")
 	}
 
-	if timeRange.HasStated() || timeRange.HasEnded() {
+	if timeRange.HasStarted() || timeRange.HasEnded() {
 		t.Errorf("should not have started or ended")
 	}
 }
@@ -131,13 +131,13 @@ func TestTimeRangeEnd(t *testing.T) {
 
 	timeRange := CreateTimeRange(0, 0, &mockedDate)
 
-	if timeRange.HasStated() {
+	if timeRange.HasStarted() {
 		t.Errorf("should not have started yet")
 	}
 
 	timeRange.Start()
 
-	if !timeRange.HasStated() {
+	if !timeRange.HasStarted() {
 		t.Errorf("should have started")
 	}
 

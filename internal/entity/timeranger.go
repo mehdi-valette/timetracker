@@ -26,7 +26,7 @@ type TimeRanger interface {
 	GetStart() Timestamp
 	GetTaskId() DbId
 	HasEnded() bool
-	HasStated() bool
+	HasStarted() bool
 	Start()
 }
 
@@ -83,7 +83,7 @@ func (tr TimeRange) HasEnded() bool {
 	return tr.rangeHasEnded
 }
 
-func (tr TimeRange) HasStated() bool {
+func (tr TimeRange) HasStarted() bool {
 	return tr.rangeHasStarted
 }
 
