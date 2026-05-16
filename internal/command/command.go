@@ -26,6 +26,7 @@ func Run() {
 }
 
 type model struct {
+	interpreter Interpreter
 	input       textinput.Model
 	currentTask entity.Tasker
 	clock       Ticker
@@ -34,6 +35,8 @@ type model struct {
 var _ tea.Model = model{}
 
 func (m model) Init() tea.Cmd {
+	m.interpreter = CreateTaskInterpreter()
+
 	return m.clock.Tick()
 }
 
@@ -44,7 +47,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			fmt.Print(m.input.Value())
+			m.interpreter.Interpret(m.input.Value())
 		default:
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
