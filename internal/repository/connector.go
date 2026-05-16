@@ -10,7 +10,6 @@ import (
 var DbConnectorNoDbErr = errors.New("no available database connection")
 
 type DbConnector interface {
-	Connect(file string) error
 	InitializeDb() error
 	Exec(query string, params ...any) (sql.Result, error)
 	QueryOne(query string, params ...any) *sql.Row
@@ -21,18 +20,14 @@ type DbConnection struct {
 	db *sql.DB
 }
 
-var _ DbConnector = &DbConnection{}
+func CreateConnection(file string) (DbConnector, error) {
+	db, openErr := sql.Open("sqlite3", file)
 
-func (conn *DbConnection) Connect(file string) error {
-	db, err := sql.Open("sqlite3", file)
-
-	if err != nil {
-		return err
+	if openErr != nil {
+		return &DbConnection{}, openErr
 	}
 
-	conn.db = db
-
-	return nil
+	return &DbConnection{db: db}, nil
 }
 
 func (conn *DbConnection) InitializeDb() error {
@@ -99,3 +94,5 @@ func (conn *DbConnection) QueryOne(query string, params ...any) *sql.Row {
 func (conn *DbConnection) QueryMany(query string, params ...any) (*sql.Rows, error) {
 	return conn.db.Query(query, params...)
 }
+
+var _ DbConnector = &DbConnection{}

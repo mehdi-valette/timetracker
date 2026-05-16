@@ -5,15 +5,21 @@ import (
 	"testing"
 
 	"github.com/mehdi-valette/timetracker/internal/entity"
+	"github.com/mehdi-valette/timetracker/internal/manager"
 	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
-func TestTaskRepositoryCreate(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
+func createTestTaskRepo() manager.TaskPersister {
+	conn, _ := CreateConnection(":memory:")
 	conn.InitializeDb()
 
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := CreateTaskRepository(conn, entity.CreateDate())
+
+	return taskRepo
+}
+
+func TestTaskRepositoryCreate(t *testing.T) {
+	taskRepo := createTestTaskRepo()
 
 	taskId, createErr := taskRepo.Create()
 
@@ -27,11 +33,7 @@ func TestTaskRepositoryCreate(t *testing.T) {
 }
 
 func TestTaskRepositoryGet(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -50,11 +52,7 @@ func TestTaskRepositoryGet(t *testing.T) {
 }
 
 func TestTaskRepositoryGetNonExistent(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -69,11 +67,7 @@ func TestTaskRepositorySave(t *testing.T) {
 	firstExpectedName := "my new task"
 	secondExpectedName := "my second new task"
 
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -108,11 +102,7 @@ func TestTaskRepositorySave(t *testing.T) {
 }
 
 func TestTaskRepositorySaveNonExistent(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -126,11 +116,7 @@ func TestTaskRepositorySaveNonExistent(t *testing.T) {
 }
 
 func TestTaskRepositoryDelete(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -164,11 +150,7 @@ func TestTaskRepositoryDelete(t *testing.T) {
 }
 
 func TestTaskRepositoryDeleteNonExistent(t *testing.T) {
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
+	taskRepo := createTestTaskRepo()
 
 	taskRepo.Create()
 	taskRepo.Create()
@@ -180,13 +162,9 @@ func TestTaskRepositoryDeleteNonExistent(t *testing.T) {
 }
 
 func TestTaskRepositoryList(t *testing.T) {
+	taskRepo := createTestTaskRepo()
+
 	names := []string{"task one", "task two", "task three"}
-
-	conn := DbConnection{}
-	conn.Connect(":memory:")
-	conn.InitializeDb()
-
-	taskRepo := CreateTaskRepository(&conn, entity.CreateDate())
 
 	taskIds := make([]entity.DbId, 0, len(names))
 	tasks := make(map[entity.DbId]entity.Tasker, len(names))

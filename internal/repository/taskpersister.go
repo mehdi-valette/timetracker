@@ -22,8 +22,6 @@ type TaskRepository struct {
 	date entity.Dater
 }
 
-var _ manager.TaskPersister = TaskRepository{}
-
 // Create implements [manager.TaskPersister].
 func (t TaskRepository) Create() (entity.DbId, error) {
 	execResult, execErr := t.conn.Exec(`INSERT INTO "task" ("name") VALUES(NULL);`)
@@ -144,3 +142,5 @@ func (t TaskRepository) List() ([]entity.Tasker, error) {
 
 	return taskList, nil
 }
+
+var _ manager.TaskPersister = TaskRepository{}

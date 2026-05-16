@@ -12,9 +12,10 @@ The database must allow creating tasks and time ranges.
 When a task is deleted, the associated time ranges must be deleted too.
 */
 func TestConnectionInitializeDb(t *testing.T) {
-	conn := DbConnection{}
-	if err := conn.Connect(":memory:"); err != nil {
-		t.Error(test.NoError(err))
+	conn, connErr := CreateConnection(":memory:")
+
+	if connErr != nil {
+		t.Error(test.NoError(connErr))
 	}
 
 	if err := conn.InitializeDb(); err != nil {
@@ -22,7 +23,7 @@ func TestConnectionInitializeDb(t *testing.T) {
 	}
 
 	// create data (one task assigned to one time range)
-	taskResult, taskErr := conn.db.Exec(`INSERT INTO "task" ("name") VALUES ('mytask')`)
+	taskResult, taskErr := conn.Exec(`INSERT INTO "task" ("name") VALUES ('mytask')`)
 
 	if taskErr != nil {
 		t.Error(test.NoError(taskErr))
@@ -30,14 +31,14 @@ func TestConnectionInitializeDb(t *testing.T) {
 
 	taskId, _ := taskResult.LastInsertId()
 
-	_, timeRangeErr := conn.db.Exec(`INSERT INTO "time_range" ("task_fk") VALUES (?)`, taskId)
+	_, timeRangeErr := conn.Exec(`INSERT INTO "time_range" ("task_fk") VALUES (?)`, taskId)
 
 	if timeRangeErr != nil {
 		t.Error(test.NoError(timeRangeErr))
 	}
 
 	// there should be one time range initially
-	countBeforeDelete := conn.db.QueryRow(`SELECT COUNT(*) FROM "time_range"`)
+	countBeforeDelete := conn.QueryOne(`SELECT COUNT(*) FROM "time_range"`)
 
 	result := struct{ count int }{}
 
@@ -50,11 +51,11 @@ func TestConnectionInitializeDb(t *testing.T) {
 	}
 
 	// the time range must be deleted with the task
-	if _, err := conn.db.Exec(`DELETE FROM "task" WHERE "id" = ?`, taskId); err != nil {
+	if _, err := conn.Exec(`DELETE FROM "task" WHERE "id" = ?`, taskId); err != nil {
 		t.Error(test.NoError(err))
 	}
 
-	countAfterDelete := conn.db.QueryRow(`SELECT COUNT(*) FROM "time_range"`)
+	countAfterDelete := conn.QueryOne(`SELECT COUNT(*) FROM "time_range"`)
 
 	if err := countAfterDelete.Scan(&result.count); err != nil {
 		t.Error(test.NoError(err))
