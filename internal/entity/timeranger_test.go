@@ -58,7 +58,7 @@ func TestTimeRangeDurationSuccess(t *testing.T) {
 	}
 }
 
-func TestTimeRangeDurationNoStart(t *testing.T) {
+func TestTimeRangeDurationStartAfterEnd(t *testing.T) {
 	timerange := TimeRange{
 		id:    1,
 		start: CreateTimestampSeconds(1000),
@@ -68,7 +68,7 @@ func TestTimeRangeDurationNoStart(t *testing.T) {
 	_, err := timerange.Duration()
 
 	if !errors.Is(err, TimeRangeDurationNoStartErr) {
-		t.Errorf("shoudl return an error when there's no start")
+		t.Errorf("shoudl return an error when the start is after the end")
 	}
 }
 
