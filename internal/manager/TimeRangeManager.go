@@ -13,7 +13,7 @@ type TimeRangePersister interface {
 	Save(timeRange entity.TimeRanger) error
 	Get(timeRangeId entity.DbId) (entity.TimeRanger, error)
 	Delete(id entity.DbId) error
-	ListByTaskId(taskId entity.DbId) []entity.TimeRanger
+	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
 }
 
 type TimeRangeManager interface {

@@ -119,3 +119,83 @@ func TestTimeRangeRepositoryGetNotFound(t *testing.T) {
 		t.Error("Expected an error")
 	}
 }
+
+func TestTimeRangeRepositoryListByTaskId(t *testing.T) {
+	timeRangeRepo, tasks := createTestTimeRangeRepo()
+
+	date := entity.CreateDateMock(time.Now())
+
+	expectedCount := 4
+	expectedRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for range expectedCount {
+		timeRangeId, _ := timeRangeRepo.Create(tasks[0].GetId())
+		timeRange := entity.CreateTimeRange(timeRangeId, tasks[0].GetId(), &date)
+
+		date.Set(time.Unix(rand.Int63(), 0))
+		timeRange.Start()
+
+		timeRangeRepo.Save(timeRange)
+
+		expectedRanges = append(expectedRanges, timeRange)
+	}
+
+	timeRanges, listErr := timeRangeRepo.ListByTaskId(tasks[0].GetId())
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(timeRanges) != expectedCount {
+		t.Errorf("got %d errors, expected %d", len(timeRanges), expectedCount)
+	}
+
+	for _, timeRange := range timeRanges {
+		found := false
+		for _, expectedRange := range expectedRanges {
+			if expectedRange.GetId() == timeRange.GetId() {
+				found = true
+
+				if expectedRange.GetStart().GetSeconds() != timeRange.GetStart().GetSeconds() {
+					t.Errorf("expect time range %d to start at %d, but started at %d",
+						expectedRange.GetId(),
+						expectedRange.GetStart().GetSeconds(),
+						timeRange.GetStart().GetSeconds(),
+					)
+				}
+			}
+		}
+
+		if !found {
+			t.Errorf("didn't expect time range with ID %d", timeRange.GetId())
+		}
+	}
+}
+
+func TestTimeRangeRepositoryListByTaskIdEmpty(t *testing.T) {
+	timeRangeRepo, tasks := createTestTimeRangeRepo()
+
+	timeRanges, listErr := timeRangeRepo.ListByTaskId(tasks[0].GetId())
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(timeRanges) != 0 {
+		t.Errorf("expected an empty list, got %d", len(timeRanges))
+	}
+}
+
+func TestTimeRangeRepositoryListByTaskIdNotFound(t *testing.T) {
+	timeRangeRepo, _ := createTestTimeRangeRepo()
+
+	timeRanges, listErr := timeRangeRepo.ListByTaskId(-1)
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(timeRanges) != 0 {
+		t.Errorf("expected an empty list, got %d", len(timeRanges))
+	}
+}

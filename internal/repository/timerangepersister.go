@@ -62,8 +62,37 @@ func (t *TimeRangeRepository) Get(timeRangeId entity.DbId) (entity.TimeRanger, e
 }
 
 // ListByTaskId implements [manager.TimeRangePersister].
-func (t *TimeRangeRepository) ListByTaskId(taskId entity.DbId) []entity.TimeRanger {
-	panic("unimplemented")
+func (t *TimeRangeRepository) ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error) {
+	// count the number of time ranges for insertion performance
+	countQuery := t.conn.QueryOne(`SELECT COUNT(*) FROM "time_range" WHERE "task_fk" = ?`, taskId)
+
+	count := 0
+	if countErr := countQuery.Scan(&count); countErr != nil {
+		return []entity.TimeRanger{}, countErr
+	}
+
+	timeRanges := make([]entity.TimeRanger, 0, count)
+
+	// query the list of time ranges
+	result, queryErr := t.conn.QueryMany(`SELECT id, task_fk, start, end FROM "time_range" WHERE "task_fk" = ?`, taskId)
+
+	if queryErr != nil {
+		return []entity.TimeRanger{}, queryErr
+	}
+
+	// process each row
+	for result.Next() {
+		record := entity.TimeRangeRecord{}
+
+		if scanErr := result.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); scanErr != nil {
+			return []entity.TimeRanger{}, scanErr
+		}
+
+		timeRanges = append(timeRanges, entity.CreateTimeRangeFromRecord(record, t.date))
+	}
+
+	// return the result
+	return timeRanges, nil
 }
 
 // Save implements [manager.TimeRangePersister].
