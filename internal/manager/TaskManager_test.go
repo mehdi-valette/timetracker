@@ -196,9 +196,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 		t.Error("the task should not yet be running")
 	}
 
-	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 0 {
-		t.Error("task should have 0 time ranges")
-	}
+	timeRangesBeforeStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
 
 	firstStartErr := manager.Start(task.GetId())
 
@@ -206,17 +204,25 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 1 {
-		t.Error("task should have 1 time range")
-	}
+	timeRangesAfterFirstStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
 
 	secondStartErr := manager.Start(task.GetId())
+
+	timeRangesAfterSecondStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
+
+	if len(timeRangesBeforeStart) != 0 {
+		t.Error("task should have 0 time ranges")
+	}
+
+	if len(timeRangesAfterFirstStart) != 1 {
+		t.Error("task should have 1 time range")
+	}
 
 	if !errors.Is(secondStartErr, TaskManagerTaskRunningErr) {
 		t.Error("should return an error")
 	}
 
-	if len(timeRangeRepository.ListByTaskId(task.GetId())) != 1 {
+	if len(timeRangesAfterSecondStart) != 1 {
 		t.Error("task should have 1 time range")
 	}
 }

@@ -2,10 +2,12 @@ package manager
 
 import (
 	"errors"
+	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/mehdi-valette/timetracker/internal/entity"
+	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
 type DateMock struct {
@@ -28,16 +30,17 @@ type MethodCall struct {
 }
 
 type timeRangeRepositoryMock struct {
-	calledWith       []MethodCall
-	countCreateCalls uint8
-	countDeleteCalls uint8
-	countSaveCalls   uint8
-	createError      error
-	deleteError      error
-	getErr           error
-	lastId           entity.DbId
-	saveError        error
-	timeRanges       map[entity.DbId]entity.TimeRanger
+	calledWith        []MethodCall
+	countCreateCalls  uint8
+	countDeleteCalls  uint8
+	countSaveCalls    uint8
+	createError       error
+	deleteError       error
+	getErr            error
+	lastId            entity.DbId
+	saveError         error
+	listByTaskIdError error
+	timeRanges        map[entity.DbId]entity.TimeRanger
 }
 
 var _ TimeRangePersister = &timeRangeRepositoryMock{}
@@ -102,8 +105,12 @@ func (trrm *timeRangeRepositoryMock) HasBeenCalledWith(method string, param any)
 	return false
 }
 
-func (trrm *timeRangeRepositoryMock) ListByTaskId(taskId entity.DbId) []entity.TimeRanger {
-	timeRanges := make([]entity.TimeRanger, 0)
+func (trrm *timeRangeRepositoryMock) ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error) {
+	if trrm.listByTaskIdError != nil {
+		return []entity.TimeRanger{}, trrm.listByTaskIdError
+	}
+
+	timeRanges := make([]entity.TimeRanger, 0, len(trrm.timeRanges))
 
 	for _, timeRange := range trrm.timeRanges {
 		if timeRange.GetTaskId() == taskId {
@@ -111,7 +118,7 @@ func (trrm *timeRangeRepositoryMock) ListByTaskId(taskId entity.DbId) []entity.T
 		}
 	}
 
-	return timeRanges
+	return timeRanges, nil
 }
 
 func TestTimeRangeManagerCreate(t *testing.T) {
@@ -407,5 +414,78 @@ func TestTimeRangeManagerSaveError(t *testing.T) {
 
 	if !errors.Is(errorDelete, expectedErr) {
 		t.Error("should have returned a delete error")
+	}
+}
+
+func TestTimeRangeManagerListByTaskId(t *testing.T) {
+	date := entity.CreateDateMock(time.Now())
+	repoMock := createTimeRangeRepositoryMock()
+
+	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
+
+	expectedCount := 10
+	expectedTimeRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for range expectedCount {
+		timeRange, _ := manager.Create(0)
+		date.Set(time.Unix(rand.Int63(), 0))
+
+		timeRange.Start()
+		manager.Save(timeRange)
+
+		expectedTimeRanges = append(expectedTimeRanges, timeRange)
+	}
+
+	listedTimeRanges, listErr := manager.ListByTaskId(0)
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(listedTimeRanges) != expectedCount {
+		t.Errorf("expected %d records, got %d", expectedCount, len(listedTimeRanges))
+	}
+
+	for _, listedTimeRange := range listedTimeRanges {
+		found := false
+
+		for _, expectedTimeRange := range expectedTimeRanges {
+			if expectedTimeRange.GetId() == listedTimeRange.GetId() {
+				found = true
+
+				if expectedTimeRange.GetStart().GetSeconds() != listedTimeRange.GetStart().GetSeconds() {
+					t.Errorf("the time range %d should start at %d, but got %d",
+						listedTimeRange.GetId(),
+						expectedTimeRange.GetStart().GetSeconds(),
+						listedTimeRange.GetStart().GetSeconds(),
+					)
+				}
+			}
+		}
+
+		if !found {
+			t.Errorf("cannot find time range %d", listedTimeRange.GetId())
+		}
+	}
+}
+
+func TestTimeRangeManagerListByTaskIdError(t *testing.T) {
+	expectedErr := errors.New("listByTaskId error")
+
+	date := entity.CreateDateMock(time.Now())
+	repoMock := createTimeRangeRepositoryMock()
+
+	repoMock.listByTaskIdError = expectedErr
+
+	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
+
+	listedTimeRanges, listErr := manager.ListByTaskId(0)
+
+	if !errors.Is(listErr, expectedErr) {
+		t.Error("should return the expected error")
+	}
+
+	if len(listedTimeRanges) != 0 {
+		t.Error("should return an empty list")
 	}
 }
