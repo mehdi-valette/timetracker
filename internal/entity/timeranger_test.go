@@ -4,12 +4,10 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
 func TestCreateTimeRange(t *testing.T) {
-	dateMock := test.CreateDaterMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+	dateMock := CreateDateMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	timeRange := CreateTimeRange(12, 3, &dateMock)
 
@@ -21,8 +19,73 @@ func TestCreateTimeRange(t *testing.T) {
 		t.Errorf("should belong to a task from creation")
 	}
 
-	if timeRange.HasStarted() || timeRange.HasEnded() {
-		t.Errorf("should not have started or ended")
+	if timeRange.HasStarted() {
+		t.Errorf("should not have started")
+	}
+
+	if timeRange.HasEnded() {
+		t.Errorf("should not have ended")
+	}
+}
+
+func TestCreateTimeRangeFromRecord(t *testing.T) {
+	dateMock := CreateDateMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	start := int64(50)
+	end := int64(60)
+
+	timeRange := CreateTimeRangeFromRecord(TimeRangeRecord{
+		Id:     12,
+		TaskId: 3,
+		Start:  &start,
+		End:    &end,
+	}, &dateMock)
+
+	if timeRange.GetId() != 12 {
+		t.Errorf("should have the ID set during its creation")
+	}
+
+	if timeRange.GetTaskId() != 3 {
+		t.Errorf("should belong to a task from creation")
+	}
+
+	if !timeRange.HasStarted() || !timeRange.HasEnded() {
+		t.Errorf("should have started and ended")
+	}
+
+	if timeRange.GetStart().GetSeconds() != start {
+		t.Errorf("started on %d instead of %d", timeRange.GetStart().GetSeconds(), start)
+	}
+
+	if timeRange.GetEnd().GetSeconds() != end {
+		t.Errorf("ended on %d instead of %d", timeRange.GetEnd().GetSeconds(), end)
+	}
+}
+
+func TestCreateTimeRangeFromRecordNoStartOrEnd(t *testing.T) {
+	dateMock := CreateDateMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	timeRange := CreateTimeRangeFromRecord(TimeRangeRecord{
+		Id:     12,
+		TaskId: 3,
+		Start:  nil,
+		End:    nil,
+	}, &dateMock)
+
+	if timeRange.GetId() != 12 {
+		t.Errorf("should have the ID set during its creation")
+	}
+
+	if timeRange.GetTaskId() != 3 {
+		t.Errorf("should belong to a task from creation")
+	}
+
+	if timeRange.HasStarted() {
+		t.Errorf("should not have started")
+	}
+
+	if timeRange.HasEnded() {
+		t.Errorf("should not have ended")
 	}
 }
 
@@ -111,7 +174,7 @@ func TestTimeRangeDurationEndEqualsStart(t *testing.T) {
 }
 
 func TestTimeRangeEnd(t *testing.T) {
-	mockedDate := test.CreateDaterMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+	mockedDate := CreateDateMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	timeRange := CreateTimeRange(0, 0, &mockedDate)
 
@@ -157,7 +220,7 @@ func TestTimeRangeGetId(t *testing.T) {
 func TestTimeRangeGetStart(t *testing.T) {
 	chosenDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	mockedDate := test.CreateDaterMock(chosenDate)
+	mockedDate := CreateDateMock(chosenDate)
 
 	timeRange := CreateTimeRange(0, 0, mockedDate)
 
@@ -172,7 +235,7 @@ func TestTimeRangeGetEnd(t *testing.T) {
 	startDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
 
-	mockedDate := test.CreateDaterMock(startDate)
+	mockedDate := CreateDateMock(startDate)
 
 	timeRange := CreateTimeRange(0, 0, &mockedDate)
 	timeRange.Start()

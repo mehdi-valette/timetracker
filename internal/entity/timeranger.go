@@ -8,6 +8,13 @@ var TimeRangeDurationNoEndErr = errors.New("no end value")
 var TimeRangeDurationNoStartErr = errors.New("no start value")
 var TimeRangeDurationEndBeforeStartErr = errors.New("end before start")
 
+type TimeRangeRecord struct {
+	Id     DbId
+	TaskId DbId
+	Start  *int64
+	End    *int64
+}
+
 func CreateTimeRange(id DbId, taskId DbId, date Dater) TimeRanger {
 	return &TimeRange{
 		date:   date,
@@ -15,6 +22,33 @@ func CreateTimeRange(id DbId, taskId DbId, date Dater) TimeRanger {
 		id:     id,
 		start:  Timestamp{},
 		taskId: taskId,
+	}
+}
+
+func CreateTimeRangeFromRecord(record TimeRangeRecord, date Dater) TimeRanger {
+	start := Timestamp{}
+	end := Timestamp{}
+	rangeHasStarted := false
+	rangeHasEnded := false
+
+	if record.Start != nil {
+		start = CreateTimestampSeconds(*record.Start)
+		rangeHasStarted = true
+	}
+
+	if record.End != nil {
+		end = CreateTimestampSeconds(*record.End)
+		rangeHasEnded = true
+	}
+
+	return &TimeRange{
+		id:              record.Id,
+		taskId:          record.TaskId,
+		start:           start,
+		end:             end,
+		rangeHasStarted: rangeHasStarted,
+		rangeHasEnded:   rangeHasEnded,
+		date:            date,
 	}
 }
 
