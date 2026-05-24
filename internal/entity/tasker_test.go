@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func createTestTask() (*Task, *DaterMock) {
-	mockDater := &DaterMock{}
+func createTestTask() (*Task, *DateMock) {
+	mockDater := &DateMock{}
 
 	return CreateTask(0, "my task", mockDater).(*Task), mockDater
 }

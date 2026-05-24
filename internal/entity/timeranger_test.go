@@ -4,26 +4,12 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
-type DaterMock struct {
-	innerDate time.Time
-}
-
-var _ Dater = DaterMock{}
-
-func (d DaterMock) Now() Timestamp {
-	return Timestamp(d.innerDate)
-}
-
-func (d *DaterMock) Set(date time.Time) {
-	d.innerDate = date
-}
-
 func TestCreateTimeRange(t *testing.T) {
-	dateMock := DaterMock{
-		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	dateMock := test.CreateDaterMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	timeRange := CreateTimeRange(12, 3, &dateMock)
 
@@ -125,9 +111,7 @@ func TestTimeRangeDurationEndEqualsStart(t *testing.T) {
 }
 
 func TestTimeRangeEnd(t *testing.T) {
-	mockedDate := DaterMock{
-		innerDate: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	mockedDate := test.CreateDaterMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	timeRange := CreateTimeRange(0, 0, &mockedDate)
 
@@ -173,9 +157,7 @@ func TestTimeRangeGetId(t *testing.T) {
 func TestTimeRangeGetStart(t *testing.T) {
 	chosenDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	mockedDate := DaterMock{
-		innerDate: chosenDate,
-	}
+	mockedDate := test.CreateDaterMock(chosenDate)
 
 	timeRange := CreateTimeRange(0, 0, mockedDate)
 
@@ -190,14 +172,12 @@ func TestTimeRangeGetEnd(t *testing.T) {
 	startDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
 
-	mockedDate := DaterMock{
-		innerDate: startDate,
-	}
+	mockedDate := test.CreateDaterMock(startDate)
 
 	timeRange := CreateTimeRange(0, 0, &mockedDate)
 	timeRange.Start()
 
-	mockedDate.innerDate = endDate
+	mockedDate.Set(endDate)
 
 	timeRange.End()
 
