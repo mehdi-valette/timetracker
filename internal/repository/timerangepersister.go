@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/mehdi-valette/timetracker/internal/entity"
 	"github.com/mehdi-valette/timetracker/internal/manager"
@@ -47,18 +48,17 @@ func (t *TimeRangeRepository) Delete(id entity.DbId) error {
 func (t *TimeRangeRepository) Get(timeRangeId entity.DbId) (entity.TimeRanger, error) {
 	result := t.conn.QueryOne(`SELECT id, task_fk, start, end FROM "time_range" WHERE "id" = ?`, timeRangeId)
 
-	parse := struct {
-		id     entity.DbId
-		taskId entity.DbId
-		start  *entity.Timestamp
-		end    *entity.Timestamp
-	}{}
+	record := entity.TimeRangeRecord{}
 
-	if err := result.Scan(&parse.id, &parse.taskId, &parse.start, &parse.end); err != nil {
+	if err := result.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); err != nil {
+		if strings.Contains(err.Error(), "sql: no rows in result set") {
+			return &entity.TimeRange{}, TimeRangeNotFoundErr
+		}
+
 		return &entity.TimeRange{}, err
 	}
 
-	return entity.CreateTimeRange(parse.id, parse.taskId, t.date), nil
+	return entity.CreateTimeRangeFromRecord(record, t.date), nil
 }
 
 // ListByTaskId implements [manager.TimeRangePersister].
@@ -68,7 +68,18 @@ func (t *TimeRangeRepository) ListByTaskId(taskId entity.DbId) []entity.TimeRang
 
 // Save implements [manager.TimeRangePersister].
 func (t *TimeRangeRepository) Save(timeRange entity.TimeRanger) error {
-	result, execErr := t.conn.Exec(`UPDATE "time_range" SET "start" = ?, "end" = ? WHERE "id" = ?`, timeRange.GetStart().GetSeconds(), timeRange.GetEnd().GetSeconds(), timeRange.GetId())
+	var start *int64 = nil
+	var end *int64 = nil
+
+	if timeRange.HasStarted() {
+		start = new(timeRange.GetStart().GetSeconds())
+	}
+
+	if timeRange.HasEnded() {
+		end = new(timeRange.GetEnd().GetSeconds())
+	}
+
+	result, execErr := t.conn.Exec(`UPDATE "time_range" SET "start" = ?, "end" = ? WHERE "id" = ?`, start, end, timeRange.GetId())
 
 	if execErr != nil {
 		return execErr
