@@ -8,19 +8,17 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/entity"
 )
 
-func Run() {
+func Run() (returnModel tea.Model, returnErr error) {
 	textinput := textinput.New()
 	textinput.Focus()
 
-	task := entity.CreateTask(0, "my task", entity.CreateDate())
-	timeRange := entity.CreateTimeRange(0, 0, entity.CreateDate())
-	task.SetTimeRange(timeRange)
+	interpreter, _ := CreateTaskInterpreter()
 
-	timeRange.Start()
-
-	tea.NewProgram(model{
+	return tea.NewProgram(model{
+		interpreter: interpreter,
 		input:       textinput,
-		currentTask: task,
+		currentTask: nil,
+		information: "",
 		clock:       Clock{},
 	}).Run()
 }
@@ -29,14 +27,13 @@ type model struct {
 	interpreter Interpreter
 	input       textinput.Model
 	currentTask entity.Tasker
+	information string
 	clock       Ticker
 }
 
 var _ tea.Model = model{}
 
 func (m model) Init() tea.Cmd {
-	m.interpreter = CreateTaskInterpreter()
-
 	return m.clock.Tick()
 }
 
@@ -47,7 +44,10 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			m.interpreter.Interpret(m.input.Value())
+			new_input, new_info := m.interpreter.Interpret(m.input.Value())
+			new_input.Focus()
+			m.information = new_info
+			m.input = new_input
 		default:
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -77,5 +77,5 @@ func (m model) View() tea.View {
 		taskInfo = fmt.Sprintf("Current task (%d:%d:%d): %s", hours, minutes, seconds, m.currentTask.GetName())
 	}
 
-	return tea.NewView(m.input.View() + "\n" + taskInfo)
+	return tea.NewView(m.input.View() + "\n" + taskInfo + "\n" + m.information)
 }
