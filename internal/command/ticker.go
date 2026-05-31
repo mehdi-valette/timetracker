@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-type TickMsg int
+type TickMsg struct{}
 
 type Ticker interface {
 	Tick() tea.Cmd
@@ -25,6 +25,6 @@ func (t Clock) Tick() tea.Cmd {
 	t.lastTick = time.Now()
 
 	return tea.Tick(time.Millisecond*time.Duration(remainingTime), func(t time.Time) tea.Msg {
-		return TickMsg(0)
+		return TickMsg{}
 	})
 }
