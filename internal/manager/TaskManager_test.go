@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mehdi-valette/timetracker/internal/entity"
+	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
 type mockCalls struct {
@@ -17,6 +18,7 @@ type taskRepositoryMock struct {
 	createErr error
 	saverErr  error
 	getErr    error
+	listErr   error
 	calls     []mockCalls
 	taskList  map[entity.DbId]entity.Tasker
 }
@@ -79,8 +81,20 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 	return task, nil
 }
 
-func (p *taskRepositoryMock) Delete(entity.DbId) error       { panic("todo") }
-func (p *taskRepositoryMock) List() ([]entity.Tasker, error) { panic("todo") }
+func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
+func (p *taskRepositoryMock) List() ([]entity.Tasker, error) {
+	if p.listErr != nil {
+		return []entity.Tasker{}, p.listErr
+	}
+
+	taskArray := make([]entity.Tasker, 0, len(p.taskList))
+
+	for _, task := range p.taskList {
+		taskArray = append(taskArray, task)
+	}
+
+	return taskArray, nil
+}
 
 func createTestTaskManager(persistMock *taskRepositoryMock) (TaskManager, *timeRangeRepositoryMock) {
 	timeRangeRepository := createTimeRangeRepositoryMock()
@@ -423,5 +437,51 @@ func TestTaskManagerStopTimeRangeManagerError(t *testing.T) {
 
 	if !errors.Is(stopErr, expectedErr) {
 		t.Error("should return an error")
+	}
+}
+
+func TestTaskManagerList(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	taskNames := []string{"one", "two", "three"}
+
+	for _, taskName := range taskNames {
+		manager.Create(taskName)
+	}
+
+	tasks, listErr := manager.List()
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(tasks) != len(taskNames) {
+		t.Errorf("should return three values, got %d", len(tasks))
+	}
+
+	for _, taskName := range taskNames {
+		found := false
+		for _, task := range tasks {
+			if task.GetName() == entity.ProperNoun(taskName) {
+				found = true
+			}
+		}
+
+		if !found {
+			t.Errorf("couldn't find task %s", taskName)
+		}
+	}
+}
+
+func TestTaskManagerListError(t *testing.T) {
+	expectedErr := errors.New("listing error")
+	taskRepositoryMock := createTaskRepositoryMock()
+	taskRepositoryMock.listErr = expectedErr
+
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	if _, listErr := manager.List(); !errors.Is(listErr, expectedErr) {
+		t.Error("expected an error")
 	}
 }

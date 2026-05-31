@@ -22,6 +22,7 @@ type TaskManager interface {
 	Start(id entity.DbId) error
 	Save(id entity.DbId) error
 	Stop(id entity.DbId) error
+	List() ([]entity.Tasker, error)
 }
 
 func CreateTaskManager(persister TaskPersister, timeRangeManager TimeRangeManager, date entity.Dater) TaskManager {
@@ -38,7 +39,10 @@ type TaskManagement struct {
 	date             entity.Dater
 }
 
-var _ TaskManager = &TaskManagement{}
+// List implements [TaskManager].
+func (tm *TaskManagement) List() ([]entity.Tasker, error) {
+	return tm.taskRepository.List()
+}
 
 func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
 	taskId, createErr := tm.taskRepository.Create()
@@ -109,3 +113,5 @@ func (tm *TaskManagement) Stop(taskId entity.DbId) error {
 
 	return nil
 }
+
+var _ TaskManager = &TaskManagement{}
