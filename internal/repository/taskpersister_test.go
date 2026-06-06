@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mattn/go-sqlite3"
 	"github.com/mehdi-valette/timetracker/internal/entity"
 	"github.com/mehdi-valette/timetracker/internal/manager"
 	"github.com/mehdi-valette/timetracker/internal/test"
@@ -98,6 +99,35 @@ func TestTaskRepositorySave(t *testing.T) {
 
 	if secondTaskAfterSave.GetName() != entity.ProperNoun(secondExpectedName) {
 		t.Errorf("should have the name \"%s\", got \"%s\"", secondExpectedName, secondTaskAfterSave.GetName())
+	}
+}
+
+func TestTaskRepositorySaveDuplicate(t *testing.T) {
+	name := "my new task"
+
+	taskRepo := createTestTaskRepo()
+
+	taskRepo.Create()
+	taskRepo.Create()
+	firstTaskId, _ := taskRepo.Create()
+	taskRepo.Create()
+	secondTaskId, _ := taskRepo.Create()
+
+	firstTask, _ := taskRepo.Get(firstTaskId)
+	secondTask, _ := taskRepo.Get(secondTaskId)
+
+	firstTask.Rename(name)
+	secondTask.Rename(name)
+
+	if err := taskRepo.Save(firstTask); err != nil {
+		t.Error(test.NoError(err))
+	}
+
+	err := taskRepo.Save(secondTask)
+	var sqlError sqlite3.Error
+
+	if !errors.As(err, &sqlError) || sqlError.ExtendedCode != 2067 {
+		t.Error("expected a 'unique constraint' error")
 	}
 }
 
