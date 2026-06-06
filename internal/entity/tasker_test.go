@@ -5,19 +5,36 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/mehdi-valette/timetracker/internal/test"
 )
 
 func createTestTask() (*Task, *DateMock) {
 	mockDater := &DateMock{}
 
-	return CreateTask(0, "my task", mockDater).(*Task), mockDater
+	task, _ := CreateTask(0, "my task", mockDater)
+
+	return task.(*Task), mockDater
 }
 
 func TestCreateTask(t *testing.T) {
-	task := CreateTask(1, "   test    ", date{}).(*Task)
+	task, createErr := CreateTask(1, "   test    ", date{})
+	taskRaw := task.(*Task)
 
-	if len(task.timeRanges) != 0 || task.name != "test" || task.id != 1 {
-		t.Errorf("Shoudl have no time ranges, name=test and id=1, got %+v", task)
+	if createErr != nil {
+		t.Error(test.NoError(createErr))
+	}
+
+	if len(taskRaw.timeRanges) != 0 || taskRaw.name != "test" || taskRaw.id != 1 {
+		t.Errorf("Shoudl have no time ranges, name=test and id=1, got %+v", taskRaw)
+	}
+}
+
+func TestCreateTaskEmpty(t *testing.T) {
+	_, createErr := CreateTask(1, "       ", date{})
+
+	if !errors.Is(createErr, EmptyNounErr) {
+		t.Error("should return an error")
 	}
 }
 
@@ -72,7 +89,7 @@ func TestTaskIsEqual(t *testing.T) {
 }
 
 func TestTaskRename(t *testing.T) {
-	task := CreateTask(0, "     hello     ", date{})
+	task, _ := CreateTask(0, "     hello     ", date{})
 
 	if task.GetName() != "hello" {
 		t.Errorf("name should be 'hello")
@@ -82,6 +99,22 @@ func TestTaskRename(t *testing.T) {
 
 	if task.GetName() != "world" {
 		t.Errorf("name should be 'world'")
+	}
+}
+
+func TestTaskRenameToEmpty(t *testing.T) {
+	task, _ := CreateTask(0, "    hello      ", date{})
+
+	if task.GetName() != "hello" {
+		t.Errorf("name should be 'hello")
+	}
+
+	if !errors.Is(task.Rename(""), EmptyNounErr) {
+		t.Error("should return an error")
+	}
+
+	if task.GetName() != "hello" {
+		t.Errorf("name should be 'hello'")
 	}
 }
 

@@ -19,6 +19,7 @@ type taskRepositoryMock struct {
 	saverErr  error
 	getErr    error
 	listErr   error
+	deleteErr error
 	calls     []mockCalls
 	taskList  map[entity.DbId]entity.Tasker
 }
@@ -54,7 +55,7 @@ func (p *taskRepositoryMock) Create() (entity.DbId, error) {
 
 	p.calls = append(p.calls, mockCalls{"Create", nil})
 
-	p.taskList[p.lastId] = entity.CreateTask(p.lastId, "", DateMock{})
+	p.taskList[p.lastId], _ = entity.CreateTask(p.lastId, "", DateMock{})
 
 	return p.lastId, p.createErr
 }
@@ -81,7 +82,18 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 	return task, nil
 }
 
-func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
+func (p *taskRepositoryMock) Delete(taskId entity.DbId) error {
+	p.calls = append(p.calls, mockCalls{"Delete", taskId})
+
+	if p.deleteErr != nil {
+		return p.deleteErr
+	}
+
+	delete(p.taskList, taskId)
+
+	return nil
+}
+
 func (p *taskRepositoryMock) List() ([]entity.Tasker, error) {
 	if p.listErr != nil {
 		return []entity.Tasker{}, p.listErr
@@ -132,6 +144,58 @@ func TestTaskManagerCreate(t *testing.T) {
 
 	if !taskRepositoryMock.HasBeenCalledWith("Create", nil) {
 		t.Error("should have called create")
+	}
+}
+
+func TestTaskManagerCreateEmptyName(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	task, createError := manager.Create("        ")
+
+	if !errors.Is(createError, entity.EmptyNounErr) {
+		t.Error("should return an error")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Save", task) != 0 {
+		t.Error("should not have called \"save\"")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Create", task) != 1 {
+		t.Error("should have called create 1 time")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Delete", task.GetId()) != 1 {
+		t.Error("should have called delete 1 time")
+	}
+}
+
+func TestTaskManagerCreateEmptyNameDeleteErr(t *testing.T) {
+	expectedErr := errors.New("delete error")
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+	taskRepositoryMock.deleteErr = expectedErr
+
+	task, createError := manager.Create("        ")
+
+	if !errors.Is(createError, entity.EmptyNounErr) {
+		t.Error("should return the noun error")
+	}
+
+	if !errors.Is(createError, expectedErr) {
+		t.Error("should return the delete error")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Save", task) != 0 {
+		t.Error("should not have called \"save\"")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Create", task) != 1 {
+		t.Error("should have called create 1 time")
+	}
+
+	if taskRepositoryMock.HasBeenCalledTimes("Delete", task.GetId()) != 1 {
+		t.Error("should have called delete 1 time")
 	}
 }
 

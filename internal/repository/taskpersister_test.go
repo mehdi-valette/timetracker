@@ -51,6 +51,25 @@ func TestTaskRepositoryGet(t *testing.T) {
 	}
 }
 
+func TestTaskRepositoryGetEmptyName(t *testing.T) {
+	taskRepo := createTestTaskRepo()
+
+	taskRepo.Create()
+	taskRepo.Create()
+	taskId, _ := taskRepo.Create()
+	taskRepo.Create()
+
+	task, getErr := taskRepo.Get(taskId)
+
+	if !errors.Is(entity.EmptyNounErr, getErr) {
+		t.Error("should return an error")
+	}
+
+	if task.GetId() != 0 {
+		t.Error("should get ID 0, got ", task.GetId())
+	}
+}
+
 func TestTaskRepositoryGetNonExistent(t *testing.T) {
 	taskRepo := createTestTaskRepo()
 
@@ -108,7 +127,7 @@ func TestTaskRepositorySaveNonExistent(t *testing.T) {
 	taskRepo.Create()
 	taskRepo.Create()
 
-	noTask := entity.CreateTask(-1, "my task", entity.CreateDate())
+	noTask, _ := entity.CreateTask(-1, "my task", entity.CreateDate())
 
 	if err := taskRepo.Save(noTask); !errors.Is(err, TaskNotFoundErr) {
 		t.Error("expected error")
@@ -172,7 +191,7 @@ func TestTaskRepositoryList(t *testing.T) {
 		newId, _ := taskRepo.Create()
 		taskIds = append(taskIds, newId)
 
-		newTask := entity.CreateTask(newId, name, entity.CreateDate())
+		newTask, _ := entity.CreateTask(newId, name, entity.CreateDate())
 		tasks[newId] = newTask
 
 		taskRepo.Save(newTask)
