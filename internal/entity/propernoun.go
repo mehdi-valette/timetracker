@@ -1,22 +1,11 @@
 package entity
 
-import (
-	"errors"
-	"strings"
-)
+import "strings"
 
 type ProperNoun string
 
-var EmptyNounErr = errors.New("noun is empty")
-
-func CreateProperNoun(newName string) (ProperNoun, error) {
-	name := strings.Trim(newName, " ")
-
-	if name == "" {
-		return ProperNoun(""), EmptyNounErr
-	}
-
+func CreateProperNoun(newName string) ProperNoun {
 	return ProperNoun(
 		strings.Trim(newName, " "),
-	), nil
+	)
 }

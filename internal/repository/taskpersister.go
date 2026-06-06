@@ -78,7 +78,7 @@ func (t TaskRepository) Get(taskId entity.DbId) (entity.Tasker, error) {
 		name = *parsedResult.name
 	}
 
-	return entity.CreateTask(entity.DbId(parsedResult.id), name, t.date)
+	return entity.CreateTask(entity.DbId(parsedResult.id), name, t.date), nil
 }
 
 // Save implements [manager.TaskPersister].
@@ -135,11 +135,7 @@ func (t TaskRepository) List() ([]entity.Tasker, error) {
 			name = *parsedResult.name
 		}
 
-		task, createErr := entity.CreateTask(entity.DbId(parsedResult.id), name, t.date)
-
-		if createErr != nil {
-			return []entity.Tasker{}, createErr
-		}
+		task := entity.CreateTask(entity.DbId(parsedResult.id), name, t.date)
 
 		taskList = append(taskList, task)
 	}

@@ -6,23 +6,17 @@ var TaskTimeRangeNotFoundErr = errors.New("TimeRange not found in this task")
 var TaskDurationImpossibleErr = errors.New("The current time is below the time of the time range")
 var TaskTwoUnfinishedTimeRangeErr = errors.New("There are two unfinished time ranges")
 
-func CreateTask(id DbId, name string, date Dater) (Tasker, error) {
-	noun, nounErr := CreateProperNoun(name)
-
-	if nounErr != nil {
-		return &Task{}, nounErr
-	}
-
+func CreateTask(id DbId, name string, date Dater) Tasker {
 	return &Task{
 		id:         id,
-		name:       noun,
+		name:       CreateProperNoun(name),
 		date:       date,
 		timeRanges: make([]TimeRanger, 0),
-	}, nil
+	}
 }
 
 type Tasker interface {
-	Rename(newName string) error
+	Rename(newName string)
 	SetTimeRange(timeRange TimeRanger)
 	GetTimeRangeById(id DbId) (TimeRanger, error)
 	GetLastTimeRange() (TimeRanger, error)
@@ -41,16 +35,8 @@ type Task struct {
 
 var _ Tasker = &Task{}
 
-func (t *Task) Rename(newName string) error {
-	noun, nounErr := CreateProperNoun(newName)
-
-	if nounErr != nil {
-		return nounErr
-	}
-
-	t.name = noun
-
-	return nil
+func (t *Task) Rename(newName string) {
+	t.name = CreateProperNoun(newName)
 }
 
 func (t Task) GetId() DbId {

@@ -25,7 +25,7 @@ func createTestTimeRangeRepo() (manager.TimeRangePersister, []entity.Tasker) {
 		id, _ := taskRepo.Create()
 
 		name := strconv.FormatUint(rand.Uint64(), 16)
-		task, _ := entity.CreateTask(id, name, entity.CreateDate())
+		task := entity.CreateTask(id, name, entity.CreateDate())
 
 		tasks = append(tasks, task)
 	}
