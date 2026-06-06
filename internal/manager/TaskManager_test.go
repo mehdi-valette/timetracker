@@ -158,6 +158,29 @@ func TestTaskManagerCreateError(t *testing.T) {
 	}
 }
 
+func TestTaskManagerCreateSaveError(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+	expectedErr := errors.New("create error")
+
+	persistMock.saverErr = expectedErr
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	task, createError := manager.Create("   hello     ")
+
+	if !errors.Is(createError, expectedErr) {
+		t.Error("should return an error")
+	}
+
+	if task != nil {
+		t.Error("task should be nil")
+	}
+
+	if !persistMock.HasBeenCalledWith("Create", nil) {
+		t.Error("should have called create")
+	}
+}
+
 func TestTaskManagerStart(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 

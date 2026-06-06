@@ -53,7 +53,9 @@ func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
 
 	task := entity.CreateTask(taskId, name, tm.date)
 
-	tm.taskRepository.Save(task)
+	if saveErr := tm.taskRepository.Save(task); saveErr != nil {
+		return nil, saveErr
+	}
 
 	return task, nil
 }
