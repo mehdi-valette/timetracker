@@ -19,6 +19,7 @@ type taskRepositoryMock struct {
 	saverErr  error
 	getErr    error
 	listErr   error
+	deleteErr error
 	calls     []mockCalls
 	taskList  map[entity.DbId]entity.Tasker
 }
@@ -81,7 +82,18 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 	return task, nil
 }
 
-func (p *taskRepositoryMock) Delete(entity.DbId) error { panic("todo") }
+func (p *taskRepositoryMock) Delete(taskId entity.DbId) error {
+	p.calls = append(p.calls, mockCalls{"Delete", taskId})
+
+	if p.deleteErr != nil {
+		return p.deleteErr
+	}
+
+	delete(p.taskList, taskId)
+
+	return nil
+}
+
 func (p *taskRepositoryMock) List() ([]entity.Tasker, error) {
 	if p.listErr != nil {
 		return []entity.Tasker{}, p.listErr
@@ -135,7 +147,7 @@ func TestTaskManagerCreate(t *testing.T) {
 	}
 }
 
-func TestTaskManagerCreateError(t *testing.T) {
+func TestTaskManagerCreateErrorOnCreate(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 	expectedErr := errors.New("create error")
 
@@ -158,11 +170,39 @@ func TestTaskManagerCreateError(t *testing.T) {
 	}
 }
 
-func TestTaskManagerCreateSaveError(t *testing.T) {
+func TestTaskManagerCreateErrorOnSave(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 	expectedErr := errors.New("create error")
 
 	persistMock.saverErr = expectedErr
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	task, createError := manager.Create("   hello     ")
+
+	if !errors.Is(createError, expectedErr) {
+		t.Error("should return an error")
+	}
+
+	if task != nil {
+		t.Error("task should be nil")
+	}
+
+	if !persistMock.HasBeenCalledWith("Create", nil) {
+		t.Error("should have called create")
+	}
+
+	if list, _ := manager.List(); len(list) != 0 {
+		t.Error("should not create a task")
+	}
+}
+
+func TestTaskManagerCreateErrorOnDelete(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+	expectedErr := errors.New("create error")
+
+	persistMock.saverErr = errors.New("")
+	persistMock.deleteErr = expectedErr
 
 	manager, _ := createTestTaskManager(persistMock)
 
