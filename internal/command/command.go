@@ -28,6 +28,7 @@ type model struct {
 	input       textinput.Model
 	currentTask entity.Tasker
 	information string
+	error       error
 	clock       Ticker
 }
 
@@ -44,10 +45,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			new_input, new_info := m.interpreter.Interpret(m.input.Value())
-			new_input.Focus()
-			m.information = new_info
-			m.input = new_input
+			// TODO: change the interpreter so it sends a new command instead of the value to show
+			// this would allow to exit the program on Quit and change the current task
+			return m, m.interpreter.Interpret(m.input.Value())
 		default:
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -56,6 +56,19 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case TickMsg:
 		cmd := m.clock.Tick()
 		return m, cmd
+	case ErrorMsg:
+		m.error = msg.error
+	case TaskCreatedMsg:
+		m.error = nil
+		m.currentTask = msg.task
+		m.information = fmt.Sprintf("Created the task \"%s\"", msg.task.GetName())
+		m.input = textinput.New()
+		return m, m.input.Focus()
+	case TaskListedMsg:
+		m.error = nil
+		m.information = msg.taskList
+		m.input = textinput.New()
+		return m, m.input.Focus()
 	}
 
 	return m, nil
@@ -77,5 +90,14 @@ func (m model) View() tea.View {
 		taskInfo = fmt.Sprintf("Current task (%d:%d:%d): %s", hours, minutes, seconds, m.currentTask.GetName())
 	}
 
-	return tea.NewView(m.input.View() + "\n" + taskInfo + "\n" + m.information)
+	text := m.input.View()
+
+	if m.error != nil {
+		text += "\n" + m.error.Error()
+	}
+
+	text += "\n" + taskInfo
+	text += "\n" + m.information
+
+	return tea.NewView(text)
 }

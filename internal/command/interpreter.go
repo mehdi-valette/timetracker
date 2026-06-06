@@ -1,16 +1,19 @@
 package command
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/mehdi-valette/timetracker/internal/entity"
 	"github.com/mehdi-valette/timetracker/internal/manager"
 	"github.com/mehdi-valette/timetracker/internal/repository"
 )
 
 type Interpreter interface {
-	Interpret(rawLine string) (textinput.Model, string)
+	Interpret(rawLine string) tea.Cmd
 }
 
 type TaskInterpreter struct {
@@ -19,7 +22,17 @@ type TaskInterpreter struct {
 
 var _ Interpreter = &TaskInterpreter{}
 
-type TaskCreated struct{}
+type ErrorMsg struct {
+	error error
+}
+
+type TaskCreatedMsg struct {
+	task entity.Tasker
+}
+
+type TaskListedMsg struct {
+	taskList string
+}
 
 func CreateTaskInterpreter() (Interpreter, error) {
 	conn, connErr := repository.CreateConnection(":memory:")
@@ -37,57 +50,59 @@ func CreateTaskInterpreter() (Interpreter, error) {
 	return &TaskInterpreter{taskManager: taskManager}, nil
 }
 
-func (i *TaskInterpreter) Interpret(rawLine string) (textinput.Model, string) {
+func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 	line := strings.Trim(rawLine, " ")
 	words := strings.Split(line, " ")
 
 	if len(words) == 0 {
-		return textinput.New(), ""
+		return nil
 	}
 
 	cmd := words[0]
 	params := words[1:]
 
-	info := "command not found"
-
 	switch cmd {
+	case "quit", "exit":
+		return tea.Quit
 	case "create":
-		info = i.createTask(params)
+		return i.createTask(params)
 	case "list":
-		info = i.listTasks()
+		return i.listTasks()
 	}
 
-	return textinput.New(), info
+	return func() tea.Msg { return ErrorMsg{error: errors.New("command unknown")} }
 }
 
-func (i *TaskInterpreter) createTask(params []string) string {
+func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
 	name := strings.Join(params, " ")
 
-	task, err := i.taskManager.Create(name)
+	task, taskErr := i.taskManager.Create(name)
 
-	if err != nil {
-		return "error while creating the task: " + err.Error()
+	if taskErr != nil {
+		return func() tea.Msg {
+			return ErrorMsg{error: fmt.Errorf("Error while creating the task: %w", taskErr)}
+		}
 	}
 
-	return "created task \"" + string(task.GetName()) + "\""
+	return func() tea.Msg { return TaskCreatedMsg{task: task} }
 }
 
-func (i *TaskInterpreter) listTasks() string {
-	tasks, err := i.taskManager.List()
+func (i *TaskInterpreter) listTasks() tea.Cmd {
+	tasks, listErr := i.taskManager.List()
 
-	if err != nil {
-		return "Error while listing the tasks: " + err.Error()
+	if listErr != nil {
+		return func() tea.Msg { return ErrorMsg{fmt.Errorf("Error while listing the tasks: %w", listErr)} }
 	}
 
 	if len(tasks) == 0 {
-		return "no tasks"
+		return func() tea.Msg { return TaskListedMsg{taskList: "no tasks"} }
 	}
 
 	info := ""
 
 	for _, task := range tasks {
-		info = info + string(task.GetName()) + "\n"
+		info = info + strconv.FormatInt(int64(task.GetId()), 10) + " " + string(task.GetName()) + "\n"
 	}
 
-	return info
+	return func() tea.Msg { return TaskListedMsg{taskList: info} }
 }
