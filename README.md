@@ -54,7 +54,6 @@ To facilitate its usage, the *command interpreter* remembers the last task writt
 The following commands are supported:
 
 - **create [name]**: create the task *name*
-- **rename [id] [new_name]**: rename the task *id* to *new_name*
 - **start [id]**: start a new time range entry for *id*
 - **stop [id]**: stop the last time range entry for *id*
 - **begin [id]**: shortcut for *create* and *start*
