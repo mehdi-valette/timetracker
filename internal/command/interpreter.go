@@ -14,16 +14,22 @@ import (
 
 type Interpreter interface {
 	Interpret(rawLine string) tea.Cmd
+	GetCurrentTask() entity.Tasker
 }
 
 type TaskInterpreter struct {
 	taskManager manager.TaskManager
+	currentTask entity.Tasker
 }
 
 var _ Interpreter = &TaskInterpreter{}
 
-type ErrorMsg struct {
-	error error
+type TaskStartedMsg struct {
+	task entity.Tasker
+}
+
+type TaskStoppedMsg struct {
+	task entity.Tasker
 }
 
 type TaskCreatedMsg struct {
@@ -32,6 +38,10 @@ type TaskCreatedMsg struct {
 
 type TaskListedMsg struct {
 	taskList string
+}
+
+type TaskDeletedMsg struct {
+	task entity.Tasker
 }
 
 func CreateTaskInterpreter() (Interpreter, error) {
@@ -43,9 +53,12 @@ func CreateTaskInterpreter() (Interpreter, error) {
 	}
 
 	date := entity.CreateDate()
-	taskRepo := repository.CreateTaskRepository(conn, date)
 
-	taskManager := manager.CreateTaskManager(taskRepo, nil, date)
+	timeRangeRepo := repository.CreateTimeRangeRepository(conn, date)
+	timeRangeManager := manager.CreateTimeRangeManager(timeRangeRepo, date)
+
+	taskRepo := repository.CreateTaskRepository(conn, date)
+	taskManager := manager.CreateTaskManager(taskRepo, timeRangeManager, date)
 
 	return &TaskInterpreter{taskManager: taskManager}, nil
 }
@@ -68,9 +81,15 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 		return i.createTask(params)
 	case "list":
 		return i.listTasks()
+	case "start":
+		return i.startTask(params)
+	case "stop":
+		return i.stopTask(params)
+	case "delete":
+		return i.deleteTask(params)
 	}
 
-	return func() tea.Msg { return ErrorMsg{error: errors.New("command unknown")} }
+	return ErrorCmd(errors.New("command unknown"))
 }
 
 func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
@@ -79,9 +98,7 @@ func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
 	task, taskErr := i.taskManager.Create(name)
 
 	if taskErr != nil {
-		return func() tea.Msg {
-			return ErrorMsg{error: fmt.Errorf("Error while creating the task: %w", taskErr)}
-		}
+		return ErrorCmd(fmt.Errorf("Error while creating the task: %w", taskErr))
 	}
 
 	return func() tea.Msg { return TaskCreatedMsg{task: task} }
@@ -91,7 +108,7 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 	tasks, listErr := i.taskManager.List()
 
 	if listErr != nil {
-		return func() tea.Msg { return ErrorMsg{fmt.Errorf("Error while listing the tasks: %w", listErr)} }
+		return ErrorCmd(fmt.Errorf("Error while listing the tasks: %w", listErr))
 	}
 
 	if len(tasks) == 0 {
@@ -101,8 +118,128 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 	info := ""
 
 	for _, task := range tasks {
-		info = info + strconv.FormatInt(int64(task.GetId()), 10) + " " + string(task.GetName()) + "\n"
+		duration, _ := task.Duration()
+
+		info += fmt.Sprintf("(%d | %s) %s \n", task.GetId(), duration.ToString(), task.GetName())
 	}
 
 	return func() tea.Msg { return TaskListedMsg{taskList: info} }
+}
+
+func (i *TaskInterpreter) GetCurrentTask() entity.Tasker {
+	return i.currentTask
+}
+
+func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
+	if len(params) > 1 {
+		return ErrorCmd(errors.New("expected a single parameter"))
+	}
+
+	if len(params) == 1 {
+		id, convErr := strconv.ParseInt(params[0], 10, 8)
+		taskId := entity.DbId(id)
+
+		if convErr != nil {
+			return ErrorCmd(convErr)
+		}
+
+		task, getErr := i.taskManager.Get(taskId)
+
+		if getErr != nil {
+			return ErrorCmd(getErr)
+		}
+
+		i.currentTask = task
+	}
+
+	if i.currentTask == nil {
+		return ErrorCmd(errors.New("no current task, please give an ID"))
+	}
+
+	task, startErr := i.taskManager.Start(i.currentTask.GetId())
+
+	if startErr != nil {
+		return ErrorCmd(startErr)
+	}
+
+	i.currentTask = task
+
+	return func() tea.Msg { return TaskStartedMsg{task: i.currentTask} }
+}
+
+func (i *TaskInterpreter) stopTask(params []string) tea.Cmd {
+	if len(params) > 1 {
+		return ErrorCmd(errors.New("expected a single parameter"))
+	}
+
+	if len(params) == 1 {
+		id, convErr := strconv.ParseInt(params[0], 10, 8)
+		taskId := entity.DbId(id)
+
+		if convErr != nil {
+			return ErrorCmd(convErr)
+		}
+
+		task, getErr := i.taskManager.Get(taskId)
+
+		if getErr != nil {
+			return ErrorCmd(getErr)
+		}
+
+		i.currentTask = task
+	}
+
+	if i.currentTask == nil {
+		return ErrorCmd(errors.New("no current task, please give an ID"))
+	}
+
+	task, stopErr := i.taskManager.Stop(i.currentTask.GetId())
+
+	if stopErr != nil {
+		return ErrorCmd(stopErr)
+	}
+
+	i.currentTask = task
+
+	return func() tea.Msg { return TaskStoppedMsg{task: task} }
+}
+
+func (i *TaskInterpreter) deleteTask(params []string) tea.Cmd {
+	if len(params) > 1 {
+		return ErrorCmd(errors.New("expected a single parameter"))
+	}
+
+	var taskId entity.DbId
+	var task entity.Tasker
+
+	if len(params) == 1 {
+		id, convErr := strconv.ParseInt(params[0], 10, 8)
+		taskId = entity.DbId(id)
+
+		if convErr != nil {
+			return ErrorCmd(convErr)
+		}
+
+		var getErr error
+		task, getErr = i.taskManager.Get(taskId)
+
+		if getErr != nil {
+			return ErrorCmd(getErr)
+		}
+	} else if i.currentTask != nil {
+		taskId = i.currentTask.GetId()
+		task = i.currentTask
+	} else {
+		return ErrorCmd(errors.New("no current task, please give an ID"))
+	}
+
+	deleteErr := i.taskManager.Delete(taskId)
+
+	if deleteErr != nil {
+		return ErrorCmd(deleteErr)
+	}
+
+	i.currentTask = nil
+
+	return func() tea.Msg { return TaskDeletedMsg{task: task} }
 }

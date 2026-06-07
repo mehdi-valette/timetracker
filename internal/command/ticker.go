@@ -16,9 +16,9 @@ type Clock struct {
 	lastTick time.Time
 }
 
-var _ Ticker = Clock{}
+var _ Ticker = &Clock{}
 
-func (t Clock) Tick() tea.Cmd {
+func (t *Clock) Tick() tea.Cmd {
 	ellapsedTime := time.Since(t.lastTick)
 	remainingTime := 1000 - ellapsedTime.Milliseconds()
 
