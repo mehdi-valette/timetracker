@@ -162,7 +162,7 @@ func (tm *TaskManagement) Stop(taskId entity.DbId) (entity.Tasker, error) {
 		return nil, stopErr
 	}
 
-	return task, nil
+	return tm.Get(taskId)
 }
 
 func (tm *TaskManagement) Delete(taskId entity.DbId) error {
