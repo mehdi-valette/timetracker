@@ -507,7 +507,7 @@ func TestTaskManagerStop(t *testing.T) {
 		t.Error("the task should be running")
 	}
 
-	stopErr := manager.Stop(task.GetId())
+	_, stopErr := manager.Stop(task.GetId())
 
 	if stopErr != nil {
 		t.Error("should not return an error")
@@ -537,7 +537,7 @@ func TestTaskManagerStopNotRunning(t *testing.T) {
 		t.Error("the task should not be running")
 	}
 
-	stopErr := taskManager.Stop(task.GetId())
+	_, stopErr := taskManager.Stop(task.GetId())
 
 	if stopErr != nil {
 		t.Error("should not return an error")
@@ -559,7 +559,7 @@ func TestTaskManagerStopNeverBegan(t *testing.T) {
 		t.Error("the task should not be running")
 	}
 
-	stopErr := taskManager.Stop(task.GetId())
+	_, stopErr := taskManager.Stop(task.GetId())
 
 	if stopErr != nil {
 		t.Error("should not return an error")
@@ -577,7 +577,7 @@ func TestTaskManagerStopRepositoryError(t *testing.T) {
 
 	taskManager, _ := createTestTaskManager(taskRepositoryMock)
 
-	stopErr := taskManager.Stop(0)
+	_, stopErr := taskManager.Stop(0)
 
 	if !errors.Is(stopErr, expectedErr) {
 		t.Error("should return an error")
@@ -599,7 +599,7 @@ func TestTaskManagerStopTimeRangeManagerError(t *testing.T) {
 
 	timeRangeRepoMock.saveError = expectedErr
 
-	stopErr := manager.Stop(task.GetId())
+	_, stopErr := manager.Stop(task.GetId())
 
 	if !errors.Is(stopErr, expectedErr) {
 		t.Error("should return an error")
@@ -649,5 +649,70 @@ func TestTaskManagerListError(t *testing.T) {
 
 	if _, listErr := manager.List(); !errors.Is(listErr, expectedErr) {
 		t.Error("expected an error")
+	}
+}
+
+func TestTaskManagerDelete(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	taskNames := []string{"one", "two", "three"}
+
+	for _, taskName := range taskNames {
+		manager.Create(taskName)
+	}
+
+	tasks, listErr := manager.List()
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(tasks) != len(taskNames) {
+		t.Errorf("should return three values, got %d", len(tasks))
+	}
+
+	if deleteErr := manager.Delete(tasks[1].GetId()); deleteErr != nil {
+		t.Error(test.NoError(deleteErr))
+	}
+
+	tasksAfter, listErr := manager.List()
+
+	if len(tasksAfter) != len(taskNames)-1 {
+		t.Errorf("should have remove a task")
+	}
+}
+
+func TestTaskManagerDeleteError(t *testing.T) {
+	expectedErr := errors.New("error on delete")
+	taskRepositoryMock := createTaskRepositoryMock()
+	taskRepositoryMock.deleteErr = expectedErr
+
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	taskNames := []string{"one", "two", "three"}
+
+	for _, taskName := range taskNames {
+		manager.Create(taskName)
+	}
+
+	tasks, listErr := manager.List()
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(tasks) != len(taskNames) {
+		t.Errorf("should return three values, got %d", len(tasks))
+	}
+
+	if deleteErr := manager.Delete(tasks[1].GetId()); !errors.Is(expectedErr, deleteErr) {
+		t.Error(test.NoError(deleteErr))
+	}
+
+	tasksAfter, listErr := manager.List()
+
+	if len(tasksAfter) != len(taskNames) {
+		t.Errorf("should have remove a task")
 	}
 }
