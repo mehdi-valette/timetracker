@@ -63,7 +63,9 @@ func (p *taskRepositoryMock) Create() (entity.DbId, error) {
 func (p *taskRepositoryMock) Save(task entity.Tasker) error {
 	p.calls = append(p.calls, mockCalls{"Save", task})
 
-	p.taskList[task.GetId()] = task
+	mockedTask := entity.CreateTask(task.GetId(), string(task.GetName()), entity.CreateDate())
+
+	p.taskList[task.GetId()] = mockedTask
 
 	return p.saverErr
 }
@@ -79,7 +81,9 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 		return &entity.Task{}, errors.New("task not found")
 	}
 
-	return task, nil
+	mockedTask := entity.CreateTask(task.GetId(), string(task.GetName()), entity.CreateDate())
+
+	return mockedTask, nil
 }
 
 func (p *taskRepositoryMock) Delete(taskId entity.DbId) error {
@@ -239,6 +243,50 @@ func TestTaskManagerGet(t *testing.T) {
 	}
 }
 
+func TestTaskManagerGetErrorOnTimeRange(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	taskManager, timeRangeManager := createTestTaskManager(persistMock)
+
+	expectedErr := errors.New("time range error")
+
+	timeRangeManager.listByTaskIdError = expectedErr
+
+	createdTask, _ := taskManager.Create("hello")
+
+	retrievedTask, getErr := taskManager.Get(createdTask.GetId())
+
+	if !errors.Is(expectedErr, getErr) {
+		t.Error("expected an error")
+	}
+
+	if retrievedTask != nil {
+		t.Error("the task should be nil")
+	}
+}
+
+func TestTaskManagerGetWithTimerange(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	createdTask, _ := manager.Create("hello")
+
+	retrievedTask, startErr := manager.Start(createdTask.GetId())
+
+	if startErr != nil {
+		t.Error(test.NoError(startErr))
+	}
+
+	if retrievedTask.GetId() != createdTask.GetId() || retrievedTask.GetName() != createdTask.GetName() {
+		t.Error("the task recieved is not as expected")
+	}
+
+	if !retrievedTask.IsRunning() {
+		t.Error("task should be running")
+	}
+}
+
 func TestTaskManagerGetUnknown(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 
@@ -250,7 +298,7 @@ func TestTaskManagerGetUnknown(t *testing.T) {
 		t.Error("should return an error")
 	}
 
-	if retrievedTask.GetId() != 0 {
+	if retrievedTask != nil {
 		t.Error("task should be empty")
 	}
 }
@@ -268,7 +316,7 @@ func TestTaskManagerStart(t *testing.T) {
 
 	persistMock.calls = []mockCalls{}
 
-	manager.Start(task.GetId())
+	task, _ = manager.Start(task.GetId())
 
 	if !task.IsRunning() {
 		t.Error("the task should be running")
@@ -289,9 +337,30 @@ func TestTaskManagerStartNotFound(t *testing.T) {
 		t.Error("the task should not yet be running")
 	}
 
-	startErr := manager.Start(-1)
+	_, startErr := manager.Start(-1)
 
 	if !errors.Is(startErr, expectedErr) {
+		t.Error("should return an error")
+	}
+}
+
+func TestTaskManagerStartErrOnTimeRange(t *testing.T) {
+	expectedErr := errors.New("task not found")
+
+	persistMock := createTaskRepositoryMock()
+
+	manager, timeRangeManager := createTestTaskManager(persistMock)
+	timeRangeManager.saveError = expectedErr
+
+	task, _ := manager.Create("hello")
+
+	if task.IsRunning() {
+		t.Error("the task should not yet be running")
+	}
+
+	_, startErr := manager.Start(task.GetId())
+
+	if !errors.Is(expectedErr, startErr) {
 		t.Error("should return an error")
 	}
 }
@@ -309,7 +378,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 
 	timeRangesBeforeStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
 
-	firstStartErr := manager.Start(task.GetId())
+	_, firstStartErr := manager.Start(task.GetId())
 
 	if firstStartErr != nil {
 		t.Error("should not return an error")
@@ -317,7 +386,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 
 	timeRangesAfterFirstStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
 
-	secondStartErr := manager.Start(task.GetId())
+	_, secondStartErr := manager.Start(task.GetId())
 
 	timeRangesAfterSecondStart, _ := timeRangeRepository.ListByTaskId(task.GetId())
 
@@ -334,7 +403,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 	}
 
 	if len(timeRangesAfterSecondStart) != 1 {
-		t.Error("task should have 1 time range")
+		t.Errorf("task should have 1 time range, got: %d", len(timeRangesAfterSecondStart))
 	}
 }
 
@@ -349,7 +418,7 @@ func TestTaskManagerStartTimeRangeError(t *testing.T) {
 
 	task, _ := manager.Create("hello")
 
-	startErr := manager.Start(task.GetId())
+	_, startErr := manager.Start(task.GetId())
 
 	if !errors.Is(startErr, expectedError) {
 		t.Error("should return an error")
@@ -432,7 +501,7 @@ func TestTaskManagerStop(t *testing.T) {
 
 	task, _ := manager.Create("my task")
 
-	manager.Start(task.GetId())
+	task, _ = manager.Start(task.GetId())
 
 	if !task.IsRunning() {
 		t.Error("the task should be running")
@@ -456,7 +525,7 @@ func TestTaskManagerStopNotRunning(t *testing.T) {
 
 	task, _ := taskManager.Create("my task")
 
-	taskManager.Start(task.GetId())
+	task, _ = taskManager.Start(task.GetId())
 
 	if !task.IsRunning() {
 		t.Error("the task should be running")
@@ -520,15 +589,15 @@ func TestTaskManagerStopTimeRangeManagerError(t *testing.T) {
 	taskRepositoryMock := createTaskRepositoryMock()
 	manager, timeRangeRepoMock := createTestTaskManager(taskRepositoryMock)
 
-	timeRangeRepoMock.saveError = expectedErr
-
 	task, _ := manager.Create("my task")
 
-	manager.Start(task.GetId())
+	task, _ = manager.Start(task.GetId())
 
 	if !task.IsRunning() {
 		t.Error("the task should be running")
 	}
+
+	timeRangeRepoMock.saveError = expectedErr
 
 	stopErr := manager.Stop(task.GetId())
 

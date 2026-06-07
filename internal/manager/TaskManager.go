@@ -19,7 +19,7 @@ type TaskPersister interface {
 
 type TaskManager interface {
 	Create(name string) (entity.Tasker, error)
-	Start(id entity.DbId) error
+	Start(id entity.DbId) (entity.Tasker, error)
 	Save(id entity.DbId) error
 	Stop(id entity.DbId) error
 	Get(id entity.DbId) (entity.Tasker, error)
@@ -42,7 +42,23 @@ type TaskManagement struct {
 
 // Get implements [TaskManager].
 func (tm *TaskManagement) Get(taskId entity.DbId) (entity.Tasker, error) {
-	return tm.taskRepository.Get(taskId)
+	timeRanges, trErr := tm.timeRangeManager.ListByTaskId(taskId)
+
+	if trErr != nil {
+		return nil, trErr
+	}
+
+	task, getErr := tm.taskRepository.Get(taskId)
+
+	if getErr != nil {
+		return nil, getErr
+	}
+
+	for _, timeRange := range timeRanges {
+		task.SetTimeRange(timeRange)
+	}
+
+	return task, nil
 }
 
 // List implements [TaskManager].
@@ -68,28 +84,32 @@ func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
 	return task, nil
 }
 
-func (tm *TaskManagement) Start(taskId entity.DbId) error {
-	task, getErr := tm.taskRepository.Get(taskId)
+func (tm *TaskManagement) Start(taskId entity.DbId) (entity.Tasker, error) {
+	task, getErr := tm.Get(taskId)
 
 	if getErr != nil {
-		return getErr
+		return nil, getErr
 	}
 
 	if task.IsRunning() {
-		return TaskManagerTaskRunningErr
+		return nil, TaskManagerTaskRunningErr
 	}
 
 	timeRange, timeRangeErr := tm.timeRangeManager.Create(task.GetId())
 
 	if timeRangeErr != nil {
-		return timeRangeErr
+		return nil, timeRangeErr
+	}
+
+	timeRange, startErr := tm.timeRangeManager.Start(timeRange.GetId())
+
+	if startErr != nil {
+		return nil, startErr
 	}
 
 	task.SetTimeRange(timeRange)
 
-	tm.timeRangeManager.Start(timeRange.GetId())
-
-	return nil
+	return task, nil
 }
 
 func (tm *TaskManagement) Save(taskId entity.DbId) error {
@@ -103,7 +123,7 @@ func (tm *TaskManagement) Save(taskId entity.DbId) error {
 }
 
 func (tm *TaskManagement) Stop(taskId entity.DbId) error {
-	task, repoErr := tm.taskRepository.Get(taskId)
+	task, repoErr := tm.Get(taskId)
 
 	if repoErr != nil {
 		return repoErr
