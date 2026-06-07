@@ -221,6 +221,40 @@ func TestTaskManagerCreateErrorOnDelete(t *testing.T) {
 	}
 }
 
+func TestTaskManagerGet(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	createdTask, _ := manager.Create("hello")
+
+	retrievedTask, getErr := manager.Get(createdTask.GetId())
+
+	if getErr != nil {
+		t.Error(test.NoError(getErr))
+	}
+
+	if retrievedTask.GetId() != createdTask.GetId() || retrievedTask.GetName() != createdTask.GetName() {
+		t.Error("the task recieved is not as expected")
+	}
+}
+
+func TestTaskManagerGetUnknown(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	retrievedTask, getErr := manager.Get(-1)
+
+	if getErr == nil {
+		t.Error("should return an error")
+	}
+
+	if retrievedTask.GetId() != 0 {
+		t.Error("task should be empty")
+	}
+}
+
 func TestTaskManagerStart(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 

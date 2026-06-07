@@ -22,6 +22,7 @@ type TaskManager interface {
 	Start(id entity.DbId) error
 	Save(id entity.DbId) error
 	Stop(id entity.DbId) error
+	Get(id entity.DbId) (entity.Tasker, error)
 	List() ([]entity.Tasker, error)
 }
 
@@ -37,6 +38,11 @@ type TaskManagement struct {
 	taskRepository   TaskPersister
 	timeRangeManager TimeRangeManager
 	date             entity.Dater
+}
+
+// Get implements [TaskManager].
+func (tm *TaskManagement) Get(taskId entity.DbId) (entity.Tasker, error) {
+	return tm.taskRepository.Get(taskId)
 }
 
 // List implements [TaskManager].
