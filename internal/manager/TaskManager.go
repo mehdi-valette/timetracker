@@ -64,7 +64,27 @@ func (tm *TaskManagement) Get(taskId entity.DbId) (entity.Tasker, error) {
 
 // List implements [TaskManager].
 func (tm *TaskManagement) List() ([]entity.Tasker, error) {
-	return tm.taskRepository.List()
+	timeRanges, trErr := tm.timeRangeManager.List()
+
+	if trErr != nil {
+		return nil, trErr
+	}
+
+	tasks, taskErr := tm.taskRepository.List()
+
+	if taskErr != nil {
+		return nil, taskErr
+	}
+
+	for _, task := range tasks {
+		for _, timeRange := range timeRanges {
+			if task.GetId() == timeRange.GetTaskId() {
+				task.SetTimeRange(timeRange)
+			}
+		}
+	}
+
+	return tasks, nil
 }
 
 func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {

@@ -613,7 +613,8 @@ func TestTaskManagerList(t *testing.T) {
 	taskNames := []string{"one", "two", "three"}
 
 	for _, taskName := range taskNames {
-		manager.Create(taskName)
+		task, _ := manager.Create(taskName)
+		manager.Start(task.GetId())
 	}
 
 	tasks, listErr := manager.List()
@@ -629,6 +630,11 @@ func TestTaskManagerList(t *testing.T) {
 	for _, taskName := range taskNames {
 		found := false
 		for _, task := range tasks {
+			lastTimeRange, _ := task.GetLastTimeRange()
+			if lastTimeRange == nil {
+				t.Error("should have a time range")
+			}
+
 			if task.GetName() == entity.ProperNoun(taskName) {
 				found = true
 			}
@@ -640,7 +646,19 @@ func TestTaskManagerList(t *testing.T) {
 	}
 }
 
-func TestTaskManagerListError(t *testing.T) {
+func TestTaskManagerListErrorOnTimeRangeList(t *testing.T) {
+	expectedErr := errors.New("listing error")
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, timeRangeMock := createTestTaskManager(taskRepositoryMock)
+
+	timeRangeMock.listError = expectedErr
+
+	if _, listErr := manager.List(); !errors.Is(listErr, expectedErr) {
+		t.Error("expected an error")
+	}
+}
+
+func TestTaskManagerListErrorOnTaskList(t *testing.T) {
 	expectedErr := errors.New("listing error")
 	taskRepositoryMock := createTaskRepositoryMock()
 	taskRepositoryMock.listErr = expectedErr
