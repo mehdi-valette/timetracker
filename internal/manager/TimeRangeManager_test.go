@@ -37,9 +37,9 @@ type timeRangeRepositoryMock struct {
 	createError       error
 	deleteError       error
 	getErr            error
-	lastId            entity.DbId
 	saveError         error
 	listByTaskIdError error
+	lastId            entity.DbId
 	timeRanges        map[entity.DbId]entity.TimeRanger
 }
 
@@ -179,7 +179,7 @@ func TestTimeRangeManagerStart(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	startErr := manager.Start(timeRange.GetId())
+	_, startErr := manager.Start(timeRange.GetId())
 
 	if startErr != nil {
 		t.Error("should not return an error")
@@ -206,7 +206,7 @@ func TestTimeRangeManagerStartNotFound(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	startErr := manager.Start(-1)
+	_, startErr := manager.Start(-1)
 
 	if startErr == nil {
 		t.Error("should return an error")
@@ -227,7 +227,7 @@ func TestTimeRangeManagerStartError(t *testing.T) {
 		t.Error("should not return an error")
 	}
 
-	startErr := manager.Start(timeRange.GetId())
+	_, startErr := manager.Start(timeRange.GetId())
 
 	if !errors.Is(startErr, chosenError) {
 		t.Error("should have returned an error")

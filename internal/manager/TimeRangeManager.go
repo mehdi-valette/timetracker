@@ -18,7 +18,7 @@ type TimeRangePersister interface {
 
 type TimeRangeManager interface {
 	Create(taskId entity.DbId) (entity.TimeRanger, error)
-	Start(id entity.DbId) error
+	Start(id entity.DbId) (entity.TimeRanger, error)
 	Stop(id entity.DbId) error
 	Save(timeRange entity.TimeRanger) error
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
@@ -50,16 +50,20 @@ func (trm *TimeRangeManagement) Create(taskId entity.DbId) (entity.TimeRanger, e
 	return timeRange, createError
 }
 
-func (trm *TimeRangeManagement) Start(id entity.DbId) error {
+func (trm *TimeRangeManagement) Start(id entity.DbId) (entity.TimeRanger, error) {
 	timeRange, getErr := trm.repository.Get(id)
 
 	if getErr != nil {
-		return getErr
+		return nil, getErr
 	}
 
 	timeRange.Start()
 
-	return trm.repository.Save(timeRange)
+	if saveErr := trm.repository.Save(timeRange); saveErr != nil {
+		return nil, saveErr
+	}
+
+	return timeRange, nil
 }
 
 func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
