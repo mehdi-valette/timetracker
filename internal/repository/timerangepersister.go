@@ -95,6 +95,40 @@ func (t *TimeRangeRepository) ListByTaskId(taskId entity.DbId) ([]entity.TimeRan
 	return timeRanges, nil
 }
 
+// ListByTaskId implements [manager.TimeRangePersister].
+func (t *TimeRangeRepository) List() ([]entity.TimeRanger, error) {
+	// count the number of time ranges for insertion performance
+	countQuery := t.conn.QueryOne(`SELECT COUNT(*) FROM "time_range"`)
+
+	count := 0
+	if countErr := countQuery.Scan(&count); countErr != nil {
+		return []entity.TimeRanger{}, countErr
+	}
+
+	timeRanges := make([]entity.TimeRanger, 0, count)
+
+	// query the list of time ranges
+	result, queryErr := t.conn.QueryMany(`SELECT id, task_fk, start, end FROM "time_range"`)
+
+	if queryErr != nil {
+		return []entity.TimeRanger{}, queryErr
+	}
+
+	// process each row
+	for result.Next() {
+		record := entity.TimeRangeRecord{}
+
+		if scanErr := result.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); scanErr != nil {
+			return []entity.TimeRanger{}, scanErr
+		}
+
+		timeRanges = append(timeRanges, entity.CreateTimeRangeFromRecord(record, t.date))
+	}
+
+	// return the result
+	return timeRanges, nil
+}
+
 // Save implements [manager.TimeRangePersister].
 func (t *TimeRangeRepository) Save(timeRange entity.TimeRanger) error {
 	var start *int64 = nil
