@@ -14,6 +14,7 @@ type TimeRangePersister interface {
 	Get(timeRangeId entity.DbId) (entity.TimeRanger, error)
 	Delete(id entity.DbId) error
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
+	List() ([]entity.TimeRanger, error)
 }
 
 type TimeRangeManager interface {
@@ -22,6 +23,7 @@ type TimeRangeManager interface {
 	Stop(id entity.DbId) error
 	Save(timeRange entity.TimeRanger) error
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
+	List() ([]entity.TimeRanger, error)
 }
 
 func CreateTimeRangeManager(repo TimeRangePersister, date entity.Dater) TimeRangeManager {
@@ -89,6 +91,11 @@ func (trm *TimeRangeManagement) Save(timeRange entity.TimeRanger) error {
 // ListByTaskId implements [TimeRangeManager].
 func (trm *TimeRangeManagement) ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error) {
 	return trm.repository.ListByTaskId(taskId)
+}
+
+// ListByTaskId implements [TimeRangeManager].
+func (trm *TimeRangeManagement) List() ([]entity.TimeRanger, error) {
+	return trm.repository.List()
 }
 
 var _ TimeRangeManager = &TimeRangeManagement{}

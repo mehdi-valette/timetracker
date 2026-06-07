@@ -39,6 +39,7 @@ type timeRangeRepositoryMock struct {
 	getErr            error
 	saveError         error
 	listByTaskIdError error
+	listError         error
 	lastId            entity.DbId
 	timeRanges        map[entity.DbId]entity.TimeRanger
 }
@@ -116,6 +117,20 @@ func (trrm *timeRangeRepositoryMock) ListByTaskId(taskId entity.DbId) ([]entity.
 		if timeRange.GetTaskId() == taskId {
 			timeRanges = append(timeRanges, timeRange)
 		}
+	}
+
+	return timeRanges, nil
+}
+
+func (trrm *timeRangeRepositoryMock) List() ([]entity.TimeRanger, error) {
+	if trrm.listError != nil {
+		return []entity.TimeRanger{}, trrm.listError
+	}
+
+	timeRanges := make([]entity.TimeRanger, 0, len(trrm.timeRanges))
+
+	for _, timeRange := range trrm.timeRanges {
+		timeRanges = append(timeRanges, timeRange)
 	}
 
 	return timeRanges, nil
@@ -414,6 +429,58 @@ func TestTimeRangeManagerSaveError(t *testing.T) {
 
 	if !errors.Is(errorDelete, expectedErr) {
 		t.Error("should have returned a delete error")
+	}
+}
+
+func TestTimeRangeManagerList(t *testing.T) {
+	date := entity.CreateDateMock(time.Now())
+	repoMock := createTimeRangeRepositoryMock()
+
+	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
+
+	expectedCount := 100
+	expectedTimeRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for range expectedCount {
+		timeRange, _ := manager.Create(entity.DbId(rand.Int31n(10)))
+		date.Set(time.Unix(rand.Int63(), 0))
+
+		timeRange.Start()
+		manager.Save(timeRange)
+
+		expectedTimeRanges = append(expectedTimeRanges, timeRange)
+	}
+
+	listedTimeRanges, listErr := manager.List()
+
+	if listErr != nil {
+		t.Error(test.NoError(listErr))
+	}
+
+	if len(listedTimeRanges) != expectedCount {
+		t.Errorf("expected %d records, got %d", expectedCount, len(listedTimeRanges))
+	}
+
+	for _, listedTimeRange := range listedTimeRanges {
+		found := false
+
+		for _, expectedTimeRange := range expectedTimeRanges {
+			if expectedTimeRange.GetId() == listedTimeRange.GetId() {
+				found = true
+
+				if expectedTimeRange.GetStart().GetSeconds() != listedTimeRange.GetStart().GetSeconds() {
+					t.Errorf("the time range %d should start at %d, but got %d",
+						listedTimeRange.GetId(),
+						expectedTimeRange.GetStart().GetSeconds(),
+						listedTimeRange.GetStart().GetSeconds(),
+					)
+				}
+			}
+		}
+
+		if !found {
+			t.Errorf("cannot find time range %d", listedTimeRange.GetId())
+		}
 	}
 }
 
