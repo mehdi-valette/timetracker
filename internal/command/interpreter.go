@@ -36,6 +36,10 @@ type TaskCreatedMsg struct {
 	task entity.Tasker
 }
 
+type TaskBeganMsg struct {
+	task entity.Tasker
+}
+
 type TaskListedMsg struct {
 	taskList string
 }
@@ -79,6 +83,8 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 		return tea.Quit
 	case "create":
 		return i.createTask(params)
+	case "begin":
+		return i.beginTask(params)
 	case "list":
 		return i.listTasks()
 	case "start":
@@ -128,6 +134,18 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 
 func (i *TaskInterpreter) GetCurrentTask() entity.Tasker {
 	return i.currentTask
+}
+
+func (i *TaskInterpreter) beginTask(params []string) tea.Cmd {
+	name := strings.Join(params, " ")
+
+	task, taskErr := i.taskManager.Create(name)
+
+	if taskErr != nil {
+		return ErrorCmd(fmt.Errorf("Error while creating the task: %w", taskErr))
+	}
+
+	return i.startTask([]string{strconv.Itoa(int(task.GetId()))})
 }
 
 func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
