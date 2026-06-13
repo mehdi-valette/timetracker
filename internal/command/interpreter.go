@@ -149,6 +149,12 @@ func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
 			return ErrorCmd(getErr)
 		}
 
+		if i.currentTask != nil {
+			if _, stopErr := i.taskManager.Stop(i.currentTask.GetId()); stopErr != nil {
+				return ErrorCmd(stopErr)
+			}
+		}
+
 		i.currentTask = task
 	}
 
