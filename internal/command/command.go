@@ -7,11 +7,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func Run() (returnModel tea.Model, returnErr error) {
+func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 	textinput := textinput.New()
 	textinput.Focus()
 
-	interpreter, _ := CreateTaskInterpreter()
+	interpreter, _ := CreateTaskInterpreter(databasePath)
 
 	return tea.NewProgram(model{
 		interpreter: interpreter,

@@ -44,8 +44,8 @@ type TaskDeletedMsg struct {
 	task entity.Tasker
 }
 
-func CreateTaskInterpreter() (Interpreter, error) {
-	conn, connErr := repository.CreateConnection(":memory:")
+func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
+	conn, connErr := repository.CreateConnection(databasePath)
 	conn.InitializeDb()
 
 	if connErr != nil {
