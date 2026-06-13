@@ -266,3 +266,43 @@ func TestTimeRangeRepositoryListByTaskIdNotFound(t *testing.T) {
 		t.Errorf("expected an empty list, got %d", len(timeRanges))
 	}
 }
+
+func TestTimeRangeRepositoryGetOpenRanges(t *testing.T) {
+	timeRangeRepo, tasks := createTestTimeRangeRepo()
+
+	date := entity.CreateDateMock(time.Now())
+
+	expectedCount := 10
+	expectedRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for index := range expectedCount {
+		timeRangeId, _ := timeRangeRepo.Create(tasks[0].GetId())
+		timeRange := entity.CreateTimeRange(timeRangeId, tasks[0].GetId(), &date)
+
+		date.Set(time.Unix(rand.Int63n(1000), 0))
+		timeRange.Start()
+
+		if index != 0 {
+			date.Set(time.Unix(rand.Int63n(1000000000), 0))
+			timeRange.End()
+		}
+
+		timeRangeRepo.Save(timeRange)
+
+		expectedRanges = append(expectedRanges, timeRange)
+	}
+
+	openRanges, openRangesErr := timeRangeRepo.GetOpenTimeRanges()
+
+	if openRangesErr != nil {
+		t.Error(test.NoError(openRangesErr))
+	}
+
+	if len(openRanges) != 1 {
+		t.Errorf("expected 1 open range, got %d", len(openRanges))
+	}
+
+	if openRanges[0].GetId() != 1 {
+		t.Errorf("expected range 1, got %d", openRanges[0].GetId())
+	}
+}

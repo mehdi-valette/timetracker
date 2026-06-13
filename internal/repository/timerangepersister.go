@@ -22,6 +22,28 @@ type TimeRangeRepository struct {
 	date entity.Dater
 }
 
+// GetOpenTimeRanges implements [manager.TimeRangePersister].
+func (t *TimeRangeRepository) GetOpenTimeRanges() ([]entity.TimeRanger, error) {
+	rows, queryErr := t.conn.QueryMany(`SELECT "id", "task_fk", "start", "end" FROM "time_range" WHERE "end" IS NULL`)
+
+	if queryErr != nil {
+		return nil, queryErr
+	}
+
+	timeRanges := make([]entity.TimeRanger, 0)
+
+	for rows.Next() {
+		record := entity.TimeRangeRecord{}
+		if scanErr := rows.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); scanErr != nil {
+			return nil, scanErr
+		}
+
+		timeRanges = append(timeRanges, entity.CreateTimeRangeFromRecord(record, t.date))
+	}
+
+	return timeRanges, nil
+}
+
 // Create implements [manager.TimeRangePersister].
 func (t *TimeRangeRepository) Create(taskId entity.DbId) (entity.DbId, error) {
 	result, execErr := t.conn.Exec(`INSERT INTO "time_range" ("task_fk") VALUES(?)`, taskId)

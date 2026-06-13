@@ -13,7 +13,7 @@ func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 
 	interpreter, _ := CreateTaskInterpreter(databasePath)
 
-	return tea.NewProgram(model{
+	return tea.NewProgram(timeTrackerModel{
 		interpreter: interpreter,
 		input:       textinput,
 		information: "",
@@ -21,7 +21,7 @@ func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 	}).Run()
 }
 
-type model struct {
+type timeTrackerModel struct {
 	interpreter Interpreter
 	input       textinput.Model
 	information string
@@ -29,13 +29,13 @@ type model struct {
 	clock       Ticker
 }
 
-var _ tea.Model = model{}
+var _ tea.Model = timeTrackerModel{}
 
-func (m model) Init() tea.Cmd {
+func (m timeTrackerModel) Init() tea.Cmd {
 	return m.clock.Tick()
 }
 
-func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
 	case tea.KeyPressMsg:
 		switch msg.Keystroke() {
@@ -85,7 +85,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() tea.View {
+func (m timeTrackerModel) View() tea.View {
 	taskInfo := "Current task: none"
 	currentTask := m.interpreter.GetCurrentTask()
 

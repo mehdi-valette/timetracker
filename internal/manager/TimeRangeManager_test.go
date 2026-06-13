@@ -30,21 +30,37 @@ type MethodCall struct {
 }
 
 type timeRangeRepositoryMock struct {
-	calledWith        []MethodCall
-	countCreateCalls  uint8
-	countDeleteCalls  uint8
-	countSaveCalls    uint8
-	createError       error
-	deleteError       error
-	getErr            error
-	saveError         error
-	listByTaskIdError error
-	listError         error
-	lastId            entity.DbId
-	timeRanges        map[entity.DbId]entity.TimeRanger
+	calledWith          []MethodCall
+	countCreateCalls    uint8
+	countDeleteCalls    uint8
+	countSaveCalls      uint8
+	createError         error
+	deleteError         error
+	getErr              error
+	saveError           error
+	listByTaskIdError   error
+	listError           error
+	getOpenTimeRangeErr error
+	lastId              entity.DbId
+	timeRanges          map[entity.DbId]entity.TimeRanger
 }
 
-var _ TimeRangePersister = &timeRangeRepositoryMock{}
+// GetOpenTimeRanges implements [TimeRangePersister].
+func (trrm *timeRangeRepositoryMock) GetOpenTimeRanges() ([]entity.TimeRanger, error) {
+	if trrm.getOpenTimeRangeErr != nil {
+		return nil, trrm.getOpenTimeRangeErr
+	}
+
+	openTimeRanges := make([]entity.TimeRanger, 0)
+
+	for _, timeRange := range trrm.timeRanges {
+		if timeRange.HasStarted() && !timeRange.HasEnded() {
+			openTimeRanges = append(openTimeRanges, timeRange)
+		}
+	}
+
+	return openTimeRanges, nil
+}
 
 func createTimeRangeRepositoryMock() *timeRangeRepositoryMock {
 	return &timeRangeRepositoryMock{
@@ -135,6 +151,8 @@ func (trrm *timeRangeRepositoryMock) List() ([]entity.TimeRanger, error) {
 
 	return timeRanges, nil
 }
+
+var _ TimeRangePersister = &timeRangeRepositoryMock{}
 
 func TestTimeRangeManagerCreate(t *testing.T) {
 	repoMock := createTimeRangeRepositoryMock()
@@ -554,5 +572,64 @@ func TestTimeRangeManagerListByTaskIdError(t *testing.T) {
 
 	if len(listedTimeRanges) != 0 {
 		t.Error("should return an empty list")
+	}
+}
+
+func TestTimeRangeManagerGetOpenTimeRanges(t *testing.T) {
+	date := entity.CreateDateMock(time.Now())
+	repoMock := createTimeRangeRepositoryMock()
+
+	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
+
+	expectedCount := 10
+	expectedTimeRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for index := range expectedCount {
+		timeRange, _ := manager.Create(0)
+		date.Set(time.Unix(rand.Int63n(1000), 0))
+
+		timeRange.Start()
+
+		if index != 0 {
+			date.Set(time.Unix(rand.Int63n(1000000000), 0))
+			timeRange.End()
+		}
+
+		manager.Save(timeRange)
+
+		expectedTimeRanges = append(expectedTimeRanges, timeRange)
+	}
+
+	openRanges, openRangeErr := manager.GetOpenTimeRanges()
+
+	if openRangeErr != nil {
+		t.Error(test.NoError(openRangeErr))
+	}
+
+	if len(openRanges) != 1 {
+		t.Errorf("expected 1 open range, got %d", len(openRanges))
+	}
+
+	if openRanges[0].GetId() != 1 {
+		t.Errorf("expected time range 1, got %d", openRanges[0].GetId())
+	}
+}
+
+func TestTimeRangeManagerGetOpenTimeRangesError(t *testing.T) {
+	expectedErr := errors.New("open range error")
+	date := entity.CreateDateMock(time.Now())
+	repoMock := createTimeRangeRepositoryMock()
+
+	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
+	repoMock.getOpenTimeRangeErr = expectedErr
+
+	openRanges, openRangeErr := manager.GetOpenTimeRanges()
+
+	if !errors.Is(openRangeErr, expectedErr) {
+		t.Error("expected an error")
+	}
+
+	if openRanges != nil {
+		t.Errorf("expected nil, got %#v", openRanges)
 	}
 }
