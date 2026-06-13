@@ -61,12 +61,24 @@ The following commands are supported:
 
 ## Diagrams
 
-### Relations
+### Database
 
 ```mermaid
 erDiagram
 
-Task || -- o{ TimeRange : contains
+task {
+    integer id      PK
+    text    name    UK
+}
+
+time_range {
+    integer id      PK
+    integer task_fk FK
+    integer start       "UNIX timestamp at beginning of time-range"
+    integer end         "UNIX timestamp at end of time-range"
+}
+
+task || -- o{ time_range: contains
 
 ```
 
