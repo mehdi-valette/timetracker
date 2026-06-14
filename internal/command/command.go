@@ -42,8 +42,6 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			// TODO: change the interpreter so it sends a new command instead of the value to show
-			// this would allow to exit the program on Quit and change the current task
 			return m, m.interpreter.Interpret(m.input.Value())
 		default:
 			var cmd tea.Cmd
