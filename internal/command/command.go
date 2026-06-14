@@ -106,7 +106,7 @@ func (m timeTrackerModel) View() tea.View {
 	if m.error != nil {
 		text += "\n" + m.error.Error()
 	}
-	text += "\n" + m.information
+	text += "\n--------------------\n" + m.information
 
 	return tea.NewView(text)
 }
