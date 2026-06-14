@@ -23,25 +23,19 @@ type TimeRangeRepository struct {
 }
 
 // GetOpenTimeRanges implements [manager.TimeRangePersister].
-func (t *TimeRangeRepository) GetOpenTimeRanges() ([]entity.TimeRanger, error) {
-	rows, queryErr := t.conn.QueryMany(`SELECT "id", "task_fk", "start", "end" FROM "time_range" WHERE "end" IS NULL`)
+func (t *TimeRangeRepository) GetLastTimeRange() (entity.TimeRanger, error) {
+	timeRangeRow := t.conn.QueryOne(`SELECT "id", "task_fk", "start", "end" FROM "time_range" ORDER BY "end" DESC NULLS FIRST LIMIT 1`)
 
-	if queryErr != nil {
-		return nil, queryErr
-	}
-
-	timeRanges := make([]entity.TimeRanger, 0)
-
-	for rows.Next() {
-		record := entity.TimeRangeRecord{}
-		if scanErr := rows.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); scanErr != nil {
-			return nil, scanErr
+	record := entity.TimeRangeRecord{}
+	if scanErr := timeRangeRow.Scan(&record.Id, &record.TaskId, &record.Start, &record.End); scanErr != nil {
+		if scanErr.Error() == "sql: no rows in result set" {
+			return nil, TimeRangeNotFoundErr
 		}
 
-		timeRanges = append(timeRanges, entity.CreateTimeRangeFromRecord(record, t.date))
+		return nil, scanErr
 	}
 
-	return timeRanges, nil
+	return entity.CreateTimeRangeFromRecord(record, t.date), nil
 }
 
 // Create implements [manager.TimeRangePersister].

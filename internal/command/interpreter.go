@@ -75,14 +75,10 @@ func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
 	taskRepo := repository.CreateTaskRepository(conn, date)
 	taskManager := manager.CreateTaskManager(taskRepo, timeRangeManager, date)
 
-	openTimeRanges, openRangeErr := timeRangeManager.GetOpenTimeRanges()
+	lastTimeRange, getLastRangeErr := timeRangeManager.GetLastTimeRange()
 
-	if openRangeErr != nil {
-		panic(openRangeErr)
-	}
-
-	if len(openTimeRanges) > 0 {
-		task, taskGetErr := taskManager.Get(openTimeRanges[0].GetTaskId())
+	if getLastRangeErr == nil {
+		task, taskGetErr := taskManager.Get(lastTimeRange.GetTaskId())
 
 		if taskGetErr != nil {
 			panic(taskGetErr)

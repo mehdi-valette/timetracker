@@ -40,26 +40,32 @@ type timeRangeRepositoryMock struct {
 	saveError           error
 	listByTaskIdError   error
 	listError           error
-	getOpenTimeRangeErr error
+	getLastTimeRangeErr error
 	lastId              entity.DbId
 	timeRanges          map[entity.DbId]entity.TimeRanger
 }
 
 // GetOpenTimeRanges implements [TimeRangePersister].
-func (trrm *timeRangeRepositoryMock) GetOpenTimeRanges() ([]entity.TimeRanger, error) {
-	if trrm.getOpenTimeRangeErr != nil {
-		return nil, trrm.getOpenTimeRangeErr
+func (trrm *timeRangeRepositoryMock) GetLastTimeRange() (entity.TimeRanger, error) {
+	if trrm.getLastTimeRangeErr != nil {
+		return nil, trrm.getLastTimeRangeErr
 	}
 
-	openTimeRanges := make([]entity.TimeRanger, 0)
+	lastEnd := 0
+	var lastTimeRange entity.TimeRanger = nil
 
 	for _, timeRange := range trrm.timeRanges {
 		if timeRange.HasStarted() && !timeRange.HasEnded() {
-			openTimeRanges = append(openTimeRanges, timeRange)
+			return timeRange, nil
+		}
+
+		if int(timeRange.GetEnd().GetSeconds()) > lastEnd {
+			lastEnd = int(timeRange.GetEnd().GetSeconds())
+			lastTimeRange = timeRange
 		}
 	}
 
-	return openTimeRanges, nil
+	return lastTimeRange, nil
 }
 
 func createTimeRangeRepositoryMock() *timeRangeRepositoryMock {
@@ -541,18 +547,14 @@ func TestTimeRangeManagerGetOpenTimeRanges(t *testing.T) {
 		expectedTimeRanges = append(expectedTimeRanges, timeRange)
 	}
 
-	openRanges, openRangeErr := manager.GetOpenTimeRanges()
+	lastRange, lastRangeErr := manager.GetLastTimeRange()
 
-	if openRangeErr != nil {
-		t.Error(test.NoError(openRangeErr))
+	if lastRangeErr != nil {
+		t.Error(test.NoError(lastRangeErr))
 	}
 
-	if len(openRanges) != 1 {
-		t.Errorf("expected 1 open range, got %d", len(openRanges))
-	}
-
-	if openRanges[0].GetId() != 1 {
-		t.Errorf("expected time range 1, got %d", openRanges[0].GetId())
+	if lastRange.GetId() != 1 {
+		t.Errorf("expected time range 1, got %d", lastRange.GetId())
 	}
 }
 
@@ -562,15 +564,15 @@ func TestTimeRangeManagerGetOpenTimeRangesError(t *testing.T) {
 	repoMock := createTimeRangeRepositoryMock()
 
 	manager := CreateTimeRangeManager(repoMock, &date).(*TimeRangeManagement)
-	repoMock.getOpenTimeRangeErr = expectedErr
+	repoMock.getLastTimeRangeErr = expectedErr
 
-	openRanges, openRangeErr := manager.GetOpenTimeRanges()
+	lastRange, lastRangeErr := manager.GetLastTimeRange()
 
-	if !errors.Is(openRangeErr, expectedErr) {
+	if !errors.Is(lastRangeErr, expectedErr) {
 		t.Error("expected an error")
 	}
 
-	if openRanges != nil {
-		t.Errorf("expected nil, got %+v", openRanges)
+	if lastRange != nil {
+		t.Errorf("expected nil, got %+v", lastRange)
 	}
 }

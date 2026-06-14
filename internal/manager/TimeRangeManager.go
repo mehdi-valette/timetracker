@@ -14,7 +14,7 @@ type TimeRangePersister interface {
 	Get(timeRangeId entity.DbId) (entity.TimeRanger, error)
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
 	List() ([]entity.TimeRanger, error)
-	GetOpenTimeRanges() ([]entity.TimeRanger, error)
+	GetLastTimeRange() (entity.TimeRanger, error)
 }
 
 type TimeRangeManager interface {
@@ -24,7 +24,7 @@ type TimeRangeManager interface {
 	Save(timeRange entity.TimeRanger) error
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
 	List() ([]entity.TimeRanger, error)
-	GetOpenTimeRanges() ([]entity.TimeRanger, error)
+	GetLastTimeRange() (entity.TimeRanger, error)
 }
 
 func CreateTimeRangeManager(repo TimeRangePersister, date entity.Dater) TimeRangeManager {
@@ -40,8 +40,8 @@ type TimeRangeManagement struct {
 }
 
 // GetOpenTimeRanges implements [TimeRangeManager].
-func (trm *TimeRangeManagement) GetOpenTimeRanges() ([]entity.TimeRanger, error) {
-	return trm.repository.GetOpenTimeRanges()
+func (trm *TimeRangeManagement) GetLastTimeRange() (entity.TimeRanger, error) {
+	return trm.repository.GetLastTimeRange()
 }
 
 func (trm *TimeRangeManagement) Create(taskId entity.DbId) (entity.TimeRanger, error) {

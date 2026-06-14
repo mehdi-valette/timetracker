@@ -267,7 +267,7 @@ func TestTimeRangeRepositoryListByTaskIdNotFound(t *testing.T) {
 	}
 }
 
-func TestTimeRangeRepositoryGetOpenRanges(t *testing.T) {
+func TestTimeRangeRepositoryGetLastTimeRangeOpen(t *testing.T) {
 	timeRangeRepo, tasks := createTestTimeRangeRepo()
 
 	date := entity.CreateDateMock(time.Now())
@@ -292,17 +292,61 @@ func TestTimeRangeRepositoryGetOpenRanges(t *testing.T) {
 		expectedRanges = append(expectedRanges, timeRange)
 	}
 
-	openRanges, openRangesErr := timeRangeRepo.GetOpenTimeRanges()
+	openRange, openRangesErr := timeRangeRepo.GetLastTimeRange()
 
 	if openRangesErr != nil {
 		t.Error(test.NoError(openRangesErr))
 	}
 
-	if len(openRanges) != 1 {
-		t.Errorf("expected 1 open range, got %d", len(openRanges))
+	if openRange.GetId() != 1 {
+		t.Errorf("expected range 1, got %d", openRange.GetId())
+	}
+}
+
+func TestTimeRangeRepositoryGetLastTimeRange(t *testing.T) {
+	timeRangeRepo, tasks := createTestTimeRangeRepo()
+
+	date := entity.CreateDateMock(time.Now())
+
+	expectedCount := 10
+	expectedRanges := make([]entity.TimeRanger, 0, expectedCount)
+
+	for index := range expectedCount {
+		timeRangeId, _ := timeRangeRepo.Create(tasks[0].GetId())
+		timeRange := entity.CreateTimeRange(timeRangeId, tasks[0].GetId(), &date)
+
+		date.Set(time.Unix(rand.Int63n(1000), 0))
+		timeRange.Start()
+
+		date.Set(time.Unix(int64(1000*index), 0))
+		timeRange.End()
+
+		timeRangeRepo.Save(timeRange)
+
+		expectedRanges = append(expectedRanges, timeRange)
 	}
 
-	if openRanges[0].GetId() != 1 {
-		t.Errorf("expected range 1, got %d", openRanges[0].GetId())
+	lastRange, lastRangeErr := timeRangeRepo.GetLastTimeRange()
+
+	if lastRangeErr != nil {
+		t.Error(test.NoError(lastRangeErr))
+	}
+
+	if lastRange.GetEnd().GetSeconds() != int64(1000*(expectedCount-1)) {
+		t.Errorf("unexpected time range, %+v", lastRange)
+	}
+}
+
+func TestTimeRangeRepositoryGetLastTimeRangeEmpty(t *testing.T) {
+	timeRangeRepo, _ := createTestTimeRangeRepo()
+
+	lastRange, lastRangeErr := timeRangeRepo.GetLastTimeRange()
+
+	if lastRange != nil {
+		t.Errorf("result should be null, got %+v", lastRange)
+	}
+
+	if !errors.Is(lastRangeErr, TimeRangeNotFoundErr) {
+		t.Errorf("expected the error TimeRangeNotFound, got %s", lastRangeErr)
 	}
 }
