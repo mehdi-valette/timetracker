@@ -98,13 +98,11 @@ func (m timeTrackerModel) View() tea.View {
 		taskInfo = fmt.Sprintf("Current task (%d | %s) %s", currentTask.GetId(), duration.ToString(), currentTask.GetName())
 	}
 
-	text := m.input.View()
+	info := m.information
 
-	text += "\n" + taskInfo
 	if m.error != nil {
-		text += "\n" + m.error.Error()
+		info = m.error.Error()
 	}
-	text += "\n--------------------\n" + m.information
 
-	return tea.NewView(text)
+	return tea.NewView(fmt.Sprintf("%s\n%s\n-------------------\n%s", m.input.View(), taskInfo, info))
 }
