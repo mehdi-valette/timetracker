@@ -55,6 +55,7 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case ErrorMsg:
 		m.error = msg.error
+		m.information = ""
 	case TaskCreatedMsg:
 		m.error = nil
 		m.information = fmt.Sprintf("Created the task (%d) %s", msg.task.GetId(), msg.task.GetName())
@@ -101,11 +102,10 @@ func (m timeTrackerModel) View() tea.View {
 
 	text := m.input.View()
 
+	text += "\n" + taskInfo
 	if m.error != nil {
 		text += "\n" + m.error.Error()
 	}
-
-	text += "\n" + taskInfo
 	text += "\n" + m.information
 
 	return tea.NewView(text)

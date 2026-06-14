@@ -12,6 +12,17 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/repository"
 )
 
+var explanation = `
+- **create [name]**: create the task *name*
+- **start [id]**: start a new time range entry for *id*
+- **stop [id]**: stop the last time range entry for *id*
+- **begin [id]**: shortcut for *create* and *start*
+- **delete [name]**: delete the task *id*
+- **list**: list all tasks and their duration
+
+note: the [id] can be omitted when there's a current task
+`
+
 type Interpreter interface {
 	Interpret(rawLine string) tea.Cmd
 	GetCurrentTask() entity.Tasker
@@ -111,7 +122,7 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 		return i.deleteTask(params)
 	}
 
-	return ErrorCmd(errors.New("command unknown"))
+	return ErrorCmd(errors.New("command unknown\n" + explanation))
 }
 
 func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
