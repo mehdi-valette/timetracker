@@ -142,7 +142,12 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 	for _, task := range tasks {
 		duration, _ := task.Duration()
 
-		info += fmt.Sprintf("(%d | %s) %s \n", task.GetId(), duration.ToString(), task.GetName())
+		indicator := " "
+		if task.IsRunning() {
+			indicator = "*"
+		}
+
+		info += fmt.Sprintf("%s (%d | %s) %s \n", indicator, task.GetId(), duration.ToString(), task.GetName())
 	}
 
 	return func() tea.Msg { return TaskListedMsg{taskList: info} }
@@ -212,6 +217,8 @@ func (i *TaskInterpreter) stopTask(params []string) tea.Cmd {
 		return ErrorCmd(errors.New("expected a single parameter"))
 	}
 
+	currentTask := i.currentTask
+
 	if len(params) == 1 {
 		id, convErr := strconv.ParseInt(params[0], 10, 8)
 		taskId := entity.DbId(id)
@@ -226,20 +233,22 @@ func (i *TaskInterpreter) stopTask(params []string) tea.Cmd {
 			return ErrorCmd(getErr)
 		}
 
-		i.currentTask = task
+		currentTask = task
 	}
 
-	if i.currentTask == nil {
+	if currentTask == nil {
 		return ErrorCmd(errors.New("no current task, please give an ID"))
 	}
 
-	task, stopErr := i.taskManager.Stop(i.currentTask.GetId())
+	task, stopErr := i.taskManager.Stop(currentTask.GetId())
 
 	if stopErr != nil {
 		return ErrorCmd(stopErr)
 	}
 
-	i.currentTask = task
+	if task.GetId() == i.currentTask.GetId() {
+		i.currentTask = task
+	}
 
 	return func() tea.Msg { return TaskStoppedMsg{task: task} }
 }
