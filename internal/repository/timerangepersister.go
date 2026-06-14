@@ -61,11 +61,6 @@ func (t *TimeRangeRepository) Create(taskId entity.DbId) (entity.DbId, error) {
 	return entity.DbId(lastId), nil
 }
 
-// Delete implements [manager.TimeRangePersister].
-func (t *TimeRangeRepository) Delete(id entity.DbId) error {
-	panic("unimplemented")
-}
-
 // Get implements [manager.TimeRangePersister].
 func (t *TimeRangeRepository) Get(timeRangeId entity.DbId) (entity.TimeRanger, error) {
 	result := t.conn.QueryOne(`SELECT id, task_fk, start, end FROM "time_range" WHERE "id" = ?`, timeRangeId)

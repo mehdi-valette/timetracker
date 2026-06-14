@@ -12,7 +12,6 @@ type TimeRangePersister interface {
 	Create(taskId entity.DbId) (entity.DbId, error)
 	Save(timeRange entity.TimeRanger) error
 	Get(timeRangeId entity.DbId) (entity.TimeRanger, error)
-	Delete(id entity.DbId) error
 	ListByTaskId(taskId entity.DbId) ([]entity.TimeRanger, error)
 	List() ([]entity.TimeRanger, error)
 	GetOpenTimeRanges() ([]entity.TimeRanger, error)
@@ -85,10 +84,6 @@ func (trm *TimeRangeManagement) Stop(id entity.DbId) error {
 	timeRange.End()
 
 	return trm.repository.Save(timeRange)
-}
-
-func (trm *TimeRangeManagement) Delete(id entity.DbId) error {
-	return trm.repository.Delete(id)
 }
 
 func (trm *TimeRangeManagement) Save(timeRange entity.TimeRanger) error {
