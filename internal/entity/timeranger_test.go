@@ -207,6 +207,56 @@ func TestTimeRangeEnd(t *testing.T) {
 	}
 }
 
+func TestTimeRangeEndAlreadyEnded(t *testing.T) {
+	mockedDate := CreateDateMock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	timeRange := CreateTimeRange(0, 0, &mockedDate)
+
+	if timeRange.HasStarted() {
+		t.Errorf("should not have started yet")
+	}
+
+	timeRange.Start()
+
+	if !timeRange.HasStarted() {
+		t.Errorf("should have started")
+	}
+
+	if timeRange.HasEnded() {
+		t.Errorf("should not have finished yet")
+	}
+
+	// first ending
+	mockedDate.Set(time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC))
+
+	timeRange.End()
+
+	if !timeRange.HasEnded() {
+		t.Errorf("should be finished")
+	}
+
+	durationFirstEnd, err := timeRange.Duration()
+
+	if err != nil || durationFirstEnd != 3600 {
+		t.Errorf("the time range should have a duration of 3600 seconds, but has %d, %e", durationFirstEnd, err)
+	}
+
+	// second ending
+	mockedDate.Set(time.Date(2000, 1, 1, 2, 0, 0, 0, time.UTC))
+
+	timeRange.End()
+
+	if !timeRange.HasEnded() {
+		t.Errorf("should be finished")
+	}
+
+	durationSecondEnd, err := timeRange.Duration()
+
+	if err != nil || durationSecondEnd != 3600 {
+		t.Errorf("the time range should have a duration of 3600 seconds, but has %d, %e", durationSecondEnd, err)
+	}
+}
+
 func TestTimeRangeGetId(t *testing.T) {
 	chosenId := DbId(12)
 

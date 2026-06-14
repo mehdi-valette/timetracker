@@ -109,6 +109,10 @@ func (tr TimeRange) GetTaskId() DbId {
 }
 
 func (tr *TimeRange) End() {
+	if tr.rangeHasEnded {
+		return
+	}
+
 	tr.end = tr.date.Now()
 	tr.rangeHasEnded = true
 }
