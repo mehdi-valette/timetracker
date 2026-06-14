@@ -211,11 +211,13 @@ func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
 
 	task, startErr := i.taskManager.Start(i.currentTask.GetId())
 
-	if startErr != nil {
+	if startErr != nil && startErr != manager.TaskManagerTaskRunningErr {
 		return ErrorCmd(startErr)
 	}
 
-	i.currentTask = task
+	if startErr == nil {
+		i.currentTask = task
+	}
 
 	return func() tea.Msg { return TaskStartedMsg{task: i.currentTask} }
 }
