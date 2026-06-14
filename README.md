@@ -56,7 +56,8 @@ The following commands are supported:
 - **create [name]**: create the task *name*
 - **start [id]**: start a new time range entry for *id*
 - **stop [id]**: stop the last time range entry for *id*
-- **begin [id]**: shortcut for *create* and *start*
+- **begin [name]**: shortcut for *create* and *start*
+- **delete [id]**: delete the task *id*
 - **list**: list all tasks and their duration
 
 ## Diagrams
