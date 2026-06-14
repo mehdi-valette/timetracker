@@ -107,6 +107,7 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 
 	switch cmd {
 	case "quit", "exit":
+		i.stopTask([]string{})
 		return tea.Quit
 	case "create":
 		return i.createTask(params)

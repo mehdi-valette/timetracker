@@ -40,7 +40,7 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch msg.Keystroke() {
 		case "esc", "ctrl+c":
-			return m, tea.Quit
+			return m, m.interpreter.Interpret("quit")
 		case "enter":
 			return m, m.interpreter.Interpret(m.input.Value())
 		default:
