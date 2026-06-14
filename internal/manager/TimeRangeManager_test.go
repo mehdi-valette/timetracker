@@ -630,6 +630,6 @@ func TestTimeRangeManagerGetOpenTimeRangesError(t *testing.T) {
 	}
 
 	if openRanges != nil {
-		t.Errorf("expected nil, got %#v", openRanges)
+		t.Errorf("expected nil, got %+v", openRanges)
 	}
 }
