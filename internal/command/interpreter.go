@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -145,7 +146,7 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 		return func() tea.Msg { return TaskListedMsg{taskList: "no tasks"} }
 	}
 
-	info := ""
+	info := new(bytes.Buffer)
 
 	for _, task := range tasks {
 		duration, _ := task.Duration()
@@ -155,10 +156,10 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 			indicator = "*"
 		}
 
-		info += fmt.Sprintf("%s (%d | %s) %s \n", indicator, task.GetId(), duration.ToString(), task.GetName())
+		fmt.Fprintf(info, "%s (%d | %s) %s \n", indicator, task.GetId(), duration.ToString(), task.GetName())
 	}
 
-	return func() tea.Msg { return TaskListedMsg{taskList: info} }
+	return func() tea.Msg { return TaskListedMsg{taskList: info.String()} }
 }
 
 func (i *TaskInterpreter) GetCurrentTask() entity.Tasker {
