@@ -13,12 +13,14 @@ func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 
 	interpreter, _ := CreateTaskInterpreter(databasePath)
 
-	return tea.NewProgram(timeTrackerModel{
+	program := tea.NewProgram(timeTrackerModel{
 		interpreter: interpreter,
 		input:       textinput,
 		information: "",
 		clock:       &Clock{},
-	}).Run()
+	})
+
+	return program.Run()
 }
 
 type timeTrackerModel struct {
@@ -41,13 +43,20 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Keystroke() {
 		case "esc", "ctrl+c":
 			return m, m.interpreter.Interpret("quit")
+		case "ctrl+v":
+			return m, func() tea.Msg { return tea.PasteMsg{} }
+		case "ctrl+l":
+			m.input = textinput.New()
+			m.input.Focus()
 		case "enter":
 			return m, m.interpreter.Interpret(m.input.Value())
 		default:
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			return m, cmd
+			m.input, _ = m.input.Update(msg)
 		}
+	case tea.PasteMsg:
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(textinput.Paste())
+		return m, cmd
 	case TickMsg:
 		cmd := m.clock.Tick()
 		return m, cmd
@@ -102,6 +111,8 @@ func (m timeTrackerModel) View() tea.View {
 
 	if m.error != nil {
 		info = m.error.Error()
+	} else if m.input.Err != nil {
+		info = m.input.Err.Error()
 	}
 
 	return tea.NewView(fmt.Sprintf("%s\n%s\n-------------------\n%s", m.input.View(), taskInfo, info))
