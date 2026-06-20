@@ -14,17 +14,36 @@ type mockCalls struct {
 }
 
 type taskRepositoryMock struct {
-	lastId    entity.DbId
-	createErr error
-	saverErr  error
-	getErr    error
-	listErr   error
-	deleteErr error
-	calls     []mockCalls
-	taskList  map[entity.DbId]entity.Tasker
+	calls             []mockCalls
+	createErr         error
+	deleteErr         error
+	getByShortNameErr error
+	getErr            error
+	lastId            entity.DbId
+	listErr           error
+	saverErr          error
+	taskList          map[entity.DbId]entity.Tasker
 }
 
 var _ TaskPersister = &taskRepositoryMock{}
+
+// GetByShortName implements [TaskPersister].
+func (p *taskRepositoryMock) GetByShortName(shortname string) (entity.Tasker, error) {
+	if p.getByShortNameErr != nil {
+		return &entity.Task{}, p.getErr
+	}
+
+	short := entity.CreateShortName(shortname)
+
+	for _, task := range p.taskList {
+		if task.GetShortName() == short {
+			mockedTask := entity.CreateTask(task.GetId(), string(task.GetShortName()), string(task.GetName()), entity.CreateDate())
+			return mockedTask, nil
+		}
+	}
+
+	return &entity.Task{}, errors.New("task not found")
+}
 
 func createTaskRepositoryMock() *taskRepositoryMock {
 	return &taskRepositoryMock{
@@ -55,7 +74,7 @@ func (p *taskRepositoryMock) Create() (entity.DbId, error) {
 
 	p.calls = append(p.calls, mockCalls{"Create", nil})
 
-	p.taskList[p.lastId] = entity.CreateTask(p.lastId, "", DateMock{})
+	p.taskList[p.lastId] = entity.CreateTask(p.lastId, "", "", DateMock{})
 
 	return p.lastId, p.createErr
 }
@@ -63,7 +82,7 @@ func (p *taskRepositoryMock) Create() (entity.DbId, error) {
 func (p *taskRepositoryMock) Save(task entity.Tasker) error {
 	p.calls = append(p.calls, mockCalls{"Save", task})
 
-	mockedTask := entity.CreateTask(task.GetId(), string(task.GetName()), entity.CreateDate())
+	mockedTask := entity.CreateTask(task.GetId(), string(task.GetShortName()), string(task.GetName()), entity.CreateDate())
 
 	p.taskList[task.GetId()] = mockedTask
 
@@ -81,7 +100,7 @@ func (p *taskRepositoryMock) Get(taskId entity.DbId) (entity.Tasker, error) {
 		return &entity.Task{}, errors.New("task not found")
 	}
 
-	mockedTask := entity.CreateTask(task.GetId(), string(task.GetName()), entity.CreateDate())
+	mockedTask := entity.CreateTask(task.GetId(), string(task.GetShortName()), string(task.GetName()), entity.CreateDate())
 
 	return mockedTask, nil
 }
@@ -128,7 +147,7 @@ func TestTaskManagerCreate(t *testing.T) {
 	taskRepositoryMock := createTaskRepositoryMock()
 	manager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, createError := manager.Create("   hello     ")
+	task, createError := manager.Create("  Alo  ", "   hello     ")
 
 	if createError != nil {
 		t.Error("should not return an error")
@@ -140,6 +159,10 @@ func TestTaskManagerCreate(t *testing.T) {
 
 	if taskRepositoryMock.HasBeenCalledTimes("Save", task) != 1 {
 		t.Error("should have called \"save\" 1 time")
+	}
+
+	if task.GetShortName() != "alo" {
+		t.Errorf("the short name should be \"alo\", got \"%s\"", task.GetShortName())
 	}
 
 	if task.GetName() != "hello" {
@@ -159,7 +182,7 @@ func TestTaskManagerCreateErrorOnCreate(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, createError := manager.Create("   hello     ")
+	task, createError := manager.Create("", "   hello     ")
 
 	if !errors.Is(createError, expectedErr) {
 		t.Error("should return an error")
@@ -182,7 +205,7 @@ func TestTaskManagerCreateErrorOnSave(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, createError := manager.Create("   hello     ")
+	task, createError := manager.Create("", "   hello     ")
 
 	if !errors.Is(createError, expectedErr) {
 		t.Error("should return an error")
@@ -210,7 +233,7 @@ func TestTaskManagerCreateErrorOnDelete(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, createError := manager.Create("   hello     ")
+	task, createError := manager.Create("", "   hello     ")
 
 	if !errors.Is(createError, expectedErr) {
 		t.Error("should return an error")
@@ -225,12 +248,76 @@ func TestTaskManagerCreateErrorOnDelete(t *testing.T) {
 	}
 }
 
+func TestTaskManagerGetByShortName(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	createdTask, _ := manager.Create("abc", "hello")
+
+	retrievedTask, getErr := manager.GetByShortName(createdTask.GetShortName().String())
+
+	if getErr != nil {
+		t.Error(test.NoError(getErr))
+	}
+
+	if retrievedTask.GetId() != createdTask.GetId() || retrievedTask.GetShortName() != createdTask.GetShortName() {
+		t.Error("the task recieved is not as expected")
+	}
+}
+
+func TestTaskManagerGetByShortNameErrorOnTimeRange(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	taskManager, timeRangeManager := createTestTaskManager(persistMock)
+
+	expectedErr := errors.New("time range error")
+
+	timeRangeManager.listByTaskIdError = expectedErr
+
+	taskManager.Create("abc", "hello")
+
+	retrievedTask, getErr := taskManager.GetByShortName("abc")
+
+	if !errors.Is(expectedErr, getErr) {
+		t.Error("expected an error")
+	}
+
+	if retrievedTask != nil {
+		t.Error("the task should be nil")
+	}
+}
+
+func TestTaskManagerGetByShortNameWithTimerange(t *testing.T) {
+	persistMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(persistMock)
+
+	createdTask, _ := manager.Create("abc", "hello")
+
+	manager.Start(createdTask.GetId())
+
+	retrievedTask, getByShortNameErr := manager.GetByShortName("abc")
+
+	if getByShortNameErr != nil {
+		t.Error(test.NoError(getByShortNameErr))
+	}
+
+	if retrievedTask.GetId() != createdTask.GetId() || retrievedTask.GetName() != createdTask.GetName() {
+		t.Error("the task recieved is not as expected")
+	}
+
+	if !retrievedTask.IsRunning() {
+		t.Error("task should be running")
+	}
+}
+
 func TestTaskManagerGet(t *testing.T) {
 	persistMock := createTaskRepositoryMock()
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	createdTask, _ := manager.Create("hello")
+	createdTask, _ := manager.Create("", "hello")
 
 	retrievedTask, getErr := manager.Get(createdTask.GetId())
 
@@ -252,7 +339,7 @@ func TestTaskManagerGetErrorOnTimeRange(t *testing.T) {
 
 	timeRangeManager.listByTaskIdError = expectedErr
 
-	createdTask, _ := taskManager.Create("hello")
+	createdTask, _ := taskManager.Create("", "hello")
 
 	retrievedTask, getErr := taskManager.Get(createdTask.GetId())
 
@@ -270,7 +357,7 @@ func TestTaskManagerGetWithTimerange(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	createdTask, _ := manager.Create("hello")
+	createdTask, _ := manager.Create("", "hello")
 
 	retrievedTask, startErr := manager.Start(createdTask.GetId())
 
@@ -308,7 +395,7 @@ func TestTaskManagerStart(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, _ := manager.Create("hello")
+	task, _ := manager.Create("", "hello")
 
 	if task.IsRunning() {
 		t.Error("the task should not yet be running")
@@ -331,7 +418,7 @@ func TestTaskManagerStartNotFound(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, _ := manager.Create("hello")
+	task, _ := manager.Create("", "hello")
 
 	if task.IsRunning() {
 		t.Error("the task should not yet be running")
@@ -352,7 +439,7 @@ func TestTaskManagerStartErrOnTimeRange(t *testing.T) {
 	manager, timeRangeManager := createTestTaskManager(persistMock)
 	timeRangeManager.saveError = expectedErr
 
-	task, _ := manager.Create("hello")
+	task, _ := manager.Create("", "hello")
 
 	if task.IsRunning() {
 		t.Error("the task should not yet be running")
@@ -370,7 +457,7 @@ func TestTaskManagerStartAlreadyRunning(t *testing.T) {
 
 	manager, timeRangeRepository := createTestTaskManager(persistMock)
 
-	task, _ := manager.Create("hello")
+	task, _ := manager.Create("", "hello")
 
 	if task.IsRunning() {
 		t.Error("the task should not yet be running")
@@ -416,7 +503,7 @@ func TestTaskManagerStartTimeRangeError(t *testing.T) {
 
 	manager := createTestTaskManagerWithMock(persistMock, timeRangeRepoMock)
 
-	task, _ := manager.Create("hello")
+	task, _ := manager.Create("", "hello")
 
 	_, startErr := manager.Start(task.GetId())
 
@@ -430,7 +517,7 @@ func TestTaskManagerSave(t *testing.T) {
 
 	manager, _ := createTestTaskManager(persistMock)
 
-	task, _ := manager.Create("my task")
+	task, _ := manager.Create("", "my task")
 
 	if !persistMock.HasBeenCalledWith("Save", task) {
 		t.Error("should have called \"save\"")
@@ -453,7 +540,7 @@ func TestTaskManagerSaveTaskNotFound(t *testing.T) {
 
 	manager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, _ := manager.Create("my task")
+	task, _ := manager.Create("", "my task")
 
 	if !taskRepositoryMock.HasBeenCalledWith("Save", task) {
 		t.Error("should have called \"save\"")
@@ -479,7 +566,7 @@ func TestTaskManagerSaveRepositoryError(t *testing.T) {
 
 	manager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, createErr := manager.Create("my task")
+	task, createErr := manager.Create("", "my task")
 
 	if createErr != nil {
 		t.Error("should not return an error")
@@ -499,7 +586,7 @@ func TestTaskManagerStop(t *testing.T) {
 
 	manager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, _ := manager.Create("my task")
+	task, _ := manager.Create("", "my task")
 
 	task, _ = manager.Start(task.GetId())
 
@@ -523,7 +610,7 @@ func TestTaskManagerStopNotRunning(t *testing.T) {
 
 	taskManager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, _ := taskManager.Create("my task")
+	task, _ := taskManager.Create("", "my task")
 
 	task, _ = taskManager.Start(task.GetId())
 
@@ -553,7 +640,7 @@ func TestTaskManagerStopNeverBegan(t *testing.T) {
 
 	taskManager, _ := createTestTaskManager(taskRepositoryMock)
 
-	task, _ := taskManager.Create("my task")
+	task, _ := taskManager.Create("", "my task")
 
 	if task.IsRunning() {
 		t.Error("the task should not be running")
@@ -589,7 +676,7 @@ func TestTaskManagerStopTimeRangeManagerError(t *testing.T) {
 	taskRepositoryMock := createTaskRepositoryMock()
 	manager, timeRangeRepoMock := createTestTaskManager(taskRepositoryMock)
 
-	task, _ := manager.Create("my task")
+	task, _ := manager.Create("", "my task")
 
 	task, _ = manager.Start(task.GetId())
 
@@ -613,7 +700,7 @@ func TestTaskManagerList(t *testing.T) {
 	taskNames := []string{"one", "two", "three"}
 
 	for _, taskName := range taskNames {
-		task, _ := manager.Create(taskName)
+		task, _ := manager.Create("", taskName)
 		manager.Start(task.GetId())
 	}
 
@@ -677,7 +764,7 @@ func TestTaskManagerDelete(t *testing.T) {
 	taskNames := []string{"one", "two", "three"}
 
 	for _, taskName := range taskNames {
-		manager.Create(taskName)
+		manager.Create("", taskName)
 	}
 
 	tasks, listErr := manager.List()
@@ -711,7 +798,7 @@ func TestTaskManagerDeleteError(t *testing.T) {
 	taskNames := []string{"one", "two", "three"}
 
 	for _, taskName := range taskNames {
-		manager.Create(taskName)
+		manager.Create("", taskName)
 	}
 
 	tasks, listErr := manager.List()

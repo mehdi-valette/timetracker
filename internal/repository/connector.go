@@ -47,7 +47,11 @@ func (conn *DbConnection) InitializeDb() error {
 
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS "task" ("id" INTEGER PRIMARY KEY ASC, "name" TEXT UNIQUE)`); err != nil {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS "task" (
+		"id" 			INTEGER PRIMARY KEY ASC,
+		"short_name" 	TEXT UNIQUE,
+		"name" 			TEXT UNIQUE
+	)`); err != nil {
 		return err
 	}
 
@@ -57,10 +61,10 @@ func (conn *DbConnection) InitializeDb() error {
 
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS "time_range" (
-			"id" INTEGER PRIMARY KEY ASC,
-			"task_fk" INTEGER NOT NULL,
-			"start" INTEGER,
-			"end" INTEGER,
+			"id" 		INTEGER PRIMARY KEY ASC,
+			"task_fk" 	INTEGER NOT NULL,
+			"start" 	INTEGER,
+			"end" 		INTEGER,
 			CONSTRAINT task_fk
 				FOREIGN KEY (task_fk)
 				REFERENCES "task"("id")

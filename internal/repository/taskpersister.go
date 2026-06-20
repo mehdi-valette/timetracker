@@ -3,12 +3,19 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/mehdi-valette/timetracker/internal/entity"
 	"github.com/mehdi-valette/timetracker/internal/manager"
 )
 
 var TaskNotFoundErr = errors.New("task not found")
+
+type taskRecord struct {
+	id        int64
+	shortName *string
+	name      *string
+}
 
 func CreateTaskRepository(conn DbConnector, date entity.Dater) manager.TaskPersister {
 	return TaskRepository{
@@ -20,6 +27,25 @@ func CreateTaskRepository(conn DbConnector, date entity.Dater) manager.TaskPersi
 type TaskRepository struct {
 	conn DbConnector
 	date entity.Dater
+}
+
+// GetByShortName implements [manager.TaskPersister].
+func (t TaskRepository) GetByShortName(shortname string) (entity.Tasker, error) {
+	queryResult := t.conn.QueryOne(`SELECT "id", "short_name", "name" FROM "task" WHERE "short_name" = ?`, entity.CreateShortName(shortname))
+
+	parsedResult := taskRecord{}
+
+	getErr := queryResult.Scan(&parsedResult.id, &parsedResult.shortName, &parsedResult.name)
+
+	if getErr != nil {
+		if strings.Contains(getErr.Error(), "sql: no rows in result set") {
+			return nil, TaskNotFoundErr
+		}
+
+		return nil, getErr
+	}
+
+	return recordToTasker(parsedResult, t.date), nil
 }
 
 // Create implements [manager.TaskPersister].
@@ -58,14 +84,11 @@ func (t TaskRepository) Delete(taskId entity.DbId) error {
 
 // Get implements [manager.TaskPersister].
 func (t TaskRepository) Get(taskId entity.DbId) (entity.Tasker, error) {
-	queryResult := t.conn.QueryOne(`SELECT "id", "name" FROM "task" WHERE "id" = ?`, taskId)
+	queryResult := t.conn.QueryOne(`SELECT "id", "short_name", "name" FROM "task" WHERE "id" = ?`, taskId)
 
-	parsedResult := struct {
-		id   int64
-		name *string
-	}{}
+	parsedResult := taskRecord{}
 
-	getErr := queryResult.Scan(&parsedResult.id, &parsedResult.name)
+	getErr := queryResult.Scan(&parsedResult.id, &parsedResult.shortName, &parsedResult.name)
 
 	if errors.Is(getErr, sql.ErrNoRows) {
 		return &entity.Task{}, TaskNotFoundErr
@@ -73,17 +96,12 @@ func (t TaskRepository) Get(taskId entity.DbId) (entity.Tasker, error) {
 		return &entity.Task{}, getErr
 	}
 
-	name := ""
-	if parsedResult.name != nil {
-		name = *parsedResult.name
-	}
-
-	return entity.CreateTask(entity.DbId(parsedResult.id), name, t.date), nil
+	return recordToTasker(parsedResult, t.date), nil
 }
 
 // Save implements [manager.TaskPersister].
 func (t TaskRepository) Save(task entity.Tasker) error {
-	updateResult, updateErr := t.conn.Exec(`UPDATE "task" SET "name" = ? WHERE "id" = ?`, task.GetName(), task.GetId())
+	updateResult, updateErr := t.conn.Exec(`UPDATE "task" SET "short_name" = ?, "name" = ? WHERE "id" = ?`, task.GetShortName(), task.GetName(), task.GetId())
 	if updateErr != nil {
 		return updateErr
 	}
@@ -113,34 +131,41 @@ func (t TaskRepository) List() ([]entity.Tasker, error) {
 	taskList := make([]entity.Tasker, 0, count)
 
 	// query all the tasks from the database
-	selectResult, selectErr := t.conn.QueryMany(`SELECT "id", "name" FROM "task"`)
+	selectResult, selectErr := t.conn.QueryMany(`SELECT "id", "short_name", "name" FROM "task"`)
 
 	if selectErr != nil {
 		return []entity.Tasker{}, selectErr
 	}
 
 	// transform each row into a task
-	parsedResult := struct {
-		id   int64
-		name *string
-	}{}
+	parsedResult := taskRecord{}
 
 	for selectResult.Next() {
-		if err := selectResult.Scan(&parsedResult.id, &parsedResult.name); err != nil {
+		if err := selectResult.Scan(&parsedResult.id, &parsedResult.shortName, &parsedResult.name); err != nil {
 			return []entity.Tasker{}, err
 		}
 
-		name := ""
-		if parsedResult.name != nil {
-			name = *parsedResult.name
-		}
-
-		task := entity.CreateTask(entity.DbId(parsedResult.id), name, t.date)
-
-		taskList = append(taskList, task)
+		taskList = append(
+			taskList,
+			recordToTasker(parsedResult, t.date),
+		)
 	}
 
 	return taskList, nil
 }
 
 var _ manager.TaskPersister = TaskRepository{}
+
+func recordToTasker(parsedResult taskRecord, date entity.Dater) entity.Tasker {
+	name := ""
+	if parsedResult.name != nil {
+		name = *parsedResult.name
+	}
+
+	shortName := ""
+	if parsedResult.shortName != nil {
+		shortName = *parsedResult.shortName
+	}
+
+	return entity.CreateTask(entity.DbId(parsedResult.id), shortName, name, date)
+}

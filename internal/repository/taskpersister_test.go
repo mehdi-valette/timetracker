@@ -33,6 +33,44 @@ func TestTaskRepositoryCreate(t *testing.T) {
 	}
 }
 
+func TestTaskRepositoryGetByShortName(t *testing.T) {
+	taskRepo := createTestTaskRepo()
+	shortname := "TestTaskRepositoryGetByShortName"
+
+	taskRepo.Create()
+	taskRepo.Create()
+	taskId, _ := taskRepo.Create()
+	taskRepo.Create()
+
+	task, _ := taskRepo.Get(taskId)
+
+	task.Reshortname(shortname)
+	taskRepo.Save(task)
+
+	task, getErr := taskRepo.GetByShortName(shortname)
+
+	if getErr != nil {
+		t.Error(test.NoError(getErr))
+	}
+
+	if task.GetShortName() != entity.CreateShortName(shortname) {
+		t.Errorf("expected short-name %s, got %s", task.GetShortName(), shortname)
+	}
+}
+
+func TestTaskRepositoryGetByShortNameNotFound(t *testing.T) {
+	taskRepo := createTestTaskRepo()
+	shortname := "TestTaskRepositoryGetByShortNameNotFound"
+
+	taskRepo.Create()
+	taskRepo.Create()
+	taskRepo.Create()
+
+	if _, getErr := taskRepo.GetByShortName(shortname); !errors.Is(getErr, TaskNotFoundErr) {
+		t.Error("should return an error")
+	}
+}
+
 func TestTaskRepositoryGet(t *testing.T) {
 	taskRepo := createTestTaskRepo()
 
@@ -65,7 +103,9 @@ func TestTaskRepositoryGetNonExistent(t *testing.T) {
 }
 
 func TestTaskRepositorySave(t *testing.T) {
+	firstExpectedShortName := "abc"
 	firstExpectedName := "my new task"
+	secondExpectedShortName := "def"
 	secondExpectedName := "my second new task"
 
 	taskRepo := createTestTaskRepo()
@@ -80,7 +120,9 @@ func TestTaskRepositorySave(t *testing.T) {
 	secondTask, _ := taskRepo.Get(secondTaskId)
 
 	firstTask.Rename(firstExpectedName)
+	firstTask.Reshortname(firstExpectedShortName)
 	secondTask.Rename(secondExpectedName)
+	secondTask.Reshortname(secondExpectedShortName)
 
 	if err := taskRepo.Save(firstTask); err != nil {
 		t.Error(test.NoError(err))
@@ -97,8 +139,16 @@ func TestTaskRepositorySave(t *testing.T) {
 		t.Errorf("should have the name \"%s\", got \"%s\"", firstExpectedName, firstTaskAfterSave.GetName())
 	}
 
+	if firstTaskAfterSave.GetShortName() != entity.ShortName(firstExpectedShortName) {
+		t.Errorf("should have the short name \"%s\", got \"%s\"", firstExpectedShortName, firstTaskAfterSave.GetShortName())
+	}
+
 	if secondTaskAfterSave.GetName() != entity.ProperNoun(secondExpectedName) {
 		t.Errorf("should have the name \"%s\", got \"%s\"", secondExpectedName, secondTaskAfterSave.GetName())
+	}
+
+	if secondTaskAfterSave.GetShortName() != entity.ShortName(secondExpectedShortName) {
+		t.Errorf("should have the short name \"%s\", got \"%s\"", secondExpectedShortName, secondTaskAfterSave.GetShortName())
 	}
 }
 
@@ -138,7 +188,7 @@ func TestTaskRepositorySaveNonExistent(t *testing.T) {
 	taskRepo.Create()
 	taskRepo.Create()
 
-	noTask := entity.CreateTask(-1, "my task", entity.CreateDate())
+	noTask := entity.CreateTask(-1, "", "my task", entity.CreateDate())
 
 	if err := taskRepo.Save(noTask); !errors.Is(err, TaskNotFoundErr) {
 		t.Error("expected error")
@@ -194,7 +244,10 @@ func TestTaskRepositoryDeleteNonExistent(t *testing.T) {
 func TestTaskRepositoryList(t *testing.T) {
 	taskRepo := createTestTaskRepo()
 
-	names := []string{"task one", "task two", "task three"}
+	names := []struct {
+		short string
+		name  string
+	}{{"one", "task one"}, {"two", "task two"}, {"three", "task three"}}
 
 	taskIds := make([]entity.DbId, 0, len(names))
 	tasks := make(map[entity.DbId]entity.Tasker, len(names))
@@ -202,7 +255,7 @@ func TestTaskRepositoryList(t *testing.T) {
 		newId, _ := taskRepo.Create()
 		taskIds = append(taskIds, newId)
 
-		newTask := entity.CreateTask(newId, name, entity.CreateDate())
+		newTask := entity.CreateTask(newId, name.short, name.name, entity.CreateDate())
 		tasks[newId] = newTask
 
 		taskRepo.Save(newTask)
@@ -227,6 +280,10 @@ func TestTaskRepositoryList(t *testing.T) {
 
 		if expectedTask.GetName() != task.GetName() {
 			t.Errorf("expected name \"%s\", found \"%s\"", expectedTask.GetName(), task.GetName())
+		}
+
+		if expectedTask.GetShortName() != task.GetShortName() {
+			t.Errorf("expected short name \"%s\", found \"%s\"", expectedTask.GetShortName(), task.GetShortName())
 		}
 	}
 }

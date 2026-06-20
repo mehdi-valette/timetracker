@@ -23,7 +23,7 @@ func TestConnectionInitializeDb(t *testing.T) {
 	}
 
 	// create data (one task assigned to one time range)
-	taskResult, taskErr := conn.Exec(`INSERT INTO "task" ("name") VALUES ('mytask')`)
+	taskResult, taskErr := conn.Exec(`INSERT INTO "task" ("short_name", "name") VALUES ('abc', 'mytask')`)
 
 	if taskErr != nil {
 		t.Error(test.NoError(taskErr))

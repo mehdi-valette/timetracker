@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -15,15 +14,15 @@ import (
 
 var explanation = `## Commands
 
-- *create [name]*: create the task *name*
--    *start [id]*: start a new time range entry for *id*
--     *stop [id]*: stop the last time range entry for *id*
--    *begin [id]*: shortcut for *create* and *start*
--   *delete [id]*: delete the task *id*
+- *create [short_name] [name]*: create the task *name* with the short name *short_name*
+-    *start [short_name]*: start a new time range entry for *short_name*
+-     *stop [short_name]*: stop the last time range entry for *short_name*
+-    *begin [short_name]*: shortcut for *create* and *start*
+-   *delete [short_name]*: delete the task *short_name*
 -          *list*: list all tasks and their duration
 -  *exit*, *quit*: stop the current task and exit the application
 
-> note: the [id] can be omitted when there's a current task
+> note: the [short_name] can be omitted when there's a current task
 
 ## Shortcuts
 
@@ -132,9 +131,14 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 }
 
 func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
-	name := strings.Join(params, " ")
+	if len(params) < 2 {
+		return func() tea.Msg { return ErrorCmd(errors.New("give a short-name followed by the task's name")) }
+	}
 
-	task, taskErr := i.taskManager.Create(name)
+	shortName := params[0]
+	name := strings.Join(params[1:], " ")
+
+	task, taskErr := i.taskManager.Create(shortName, name)
 
 	if taskErr != nil {
 		return ErrorCmd(fmt.Errorf("Error while creating the task: %w", taskErr))
@@ -157,14 +161,7 @@ func (i *TaskInterpreter) listTasks() tea.Cmd {
 	info := new(bytes.Buffer)
 
 	for _, task := range tasks {
-		duration, _ := task.Duration()
-
-		indicator := " "
-		if task.IsRunning() {
-			indicator = "*"
-		}
-
-		fmt.Fprintf(info, "%s (%d | %s) %s \n", indicator, task.GetId(), duration.ToString(), task.GetName())
+		fmt.Fprintf(info, "%s\n", task.String())
 	}
 
 	return func() tea.Msg { return TaskListedMsg{taskList: info.String()} }
@@ -175,15 +172,15 @@ func (i *TaskInterpreter) GetCurrentTask() entity.Tasker {
 }
 
 func (i *TaskInterpreter) beginTask(params []string) tea.Cmd {
-	name := strings.Join(params, " ")
+	cmd := i.createTask(params)
 
-	task, taskErr := i.taskManager.Create(name)
+	msg, ok := cmd().(TaskCreatedMsg)
 
-	if taskErr != nil {
-		return ErrorCmd(fmt.Errorf("Error while creating the task: %w", taskErr))
+	if !ok {
+		return func() tea.Msg { return ErrorCmd(errors.New("error beginning the task")) }
 	}
 
-	return i.startTask([]string{strconv.Itoa(int(task.GetId()))})
+	return i.startTask([]string{msg.task.GetShortName().String()})
 }
 
 func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
@@ -192,14 +189,7 @@ func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
 	}
 
 	if len(params) == 1 {
-		id, convErr := strconv.ParseInt(params[0], 10, 8)
-		taskId := entity.DbId(id)
-
-		if convErr != nil {
-			return ErrorCmd(convErr)
-		}
-
-		task, getErr := i.taskManager.Get(taskId)
+		task, getErr := i.taskManager.GetByShortName(params[0])
 
 		if getErr != nil {
 			return ErrorCmd(getErr)
@@ -215,7 +205,7 @@ func (i *TaskInterpreter) startTask(params []string) tea.Cmd {
 	}
 
 	if i.currentTask == nil {
-		return ErrorCmd(errors.New("no current task, please give an ID"))
+		return ErrorCmd(errors.New("no current task, please give a short name"))
 	}
 
 	task, startErr := i.taskManager.Start(i.currentTask.GetId())
@@ -239,14 +229,7 @@ func (i *TaskInterpreter) stopTask(params []string) tea.Cmd {
 	currentTask := i.currentTask
 
 	if len(params) == 1 {
-		id, convErr := strconv.ParseInt(params[0], 10, 8)
-		taskId := entity.DbId(id)
-
-		if convErr != nil {
-			return ErrorCmd(convErr)
-		}
-
-		task, getErr := i.taskManager.Get(taskId)
+		task, getErr := i.taskManager.GetByShortName(params[0])
 
 		if getErr != nil {
 			return ErrorCmd(getErr)
@@ -256,7 +239,7 @@ func (i *TaskInterpreter) stopTask(params []string) tea.Cmd {
 	}
 
 	if currentTask == nil {
-		return ErrorCmd(errors.New("no current task, please give an ID"))
+		return ErrorCmd(errors.New("no current task, please give a short name"))
 	}
 
 	task, stopErr := i.taskManager.Stop(currentTask.GetId())
@@ -281,24 +264,19 @@ func (i *TaskInterpreter) deleteTask(params []string) tea.Cmd {
 	var task entity.Tasker
 
 	if len(params) == 1 {
-		id, convErr := strconv.ParseInt(params[0], 10, 8)
-		taskId = entity.DbId(id)
-
-		if convErr != nil {
-			return ErrorCmd(convErr)
-		}
-
 		var getErr error
-		task, getErr = i.taskManager.Get(taskId)
+		task, getErr = i.taskManager.GetByShortName(params[0])
 
 		if getErr != nil {
 			return ErrorCmd(getErr)
 		}
+
+		taskId = task.GetId()
 	} else if i.currentTask != nil {
 		taskId = i.currentTask.GetId()
 		task = i.currentTask
 	} else {
-		return ErrorCmd(errors.New("no current task, please give an ID"))
+		return ErrorCmd(errors.New("no current task, please give a short name"))
 	}
 
 	deleteErr := i.taskManager.Delete(taskId)

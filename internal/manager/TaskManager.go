@@ -11,20 +11,22 @@ var TaskManagerTaskStoppedErr = errors.New("task already running")
 
 type TaskPersister interface {
 	Create() (entity.DbId, error)
-	Save(entity.Tasker) error
 	Delete(entity.DbId) error
 	Get(entity.DbId) (entity.Tasker, error)
+	GetByShortName(string) (entity.Tasker, error)
 	List() ([]entity.Tasker, error)
+	Save(entity.Tasker) error
 }
 
 type TaskManager interface {
-	Create(name string) (entity.Tasker, error)
-	Start(taskId entity.DbId) (entity.Tasker, error)
-	Save(taskId entity.DbId) error
-	Stop(taskId entity.DbId) (entity.Tasker, error)
+	Create(shortName string, name string) (entity.Tasker, error)
 	Delete(taskId entity.DbId) error
 	Get(taskId entity.DbId) (entity.Tasker, error)
+	GetByShortName(string) (entity.Tasker, error)
 	List() ([]entity.Tasker, error)
+	Save(taskId entity.DbId) error
+	Start(taskId entity.DbId) (entity.Tasker, error)
+	Stop(taskId entity.DbId) (entity.Tasker, error)
 }
 
 func CreateTaskManager(persister TaskPersister, timeRangeManager TimeRangeManager, date entity.Dater) TaskManager {
@@ -39,6 +41,29 @@ type TaskManagement struct {
 	taskRepository   TaskPersister
 	timeRangeManager TimeRangeManager
 	date             entity.Dater
+}
+
+var _ TaskManager = &TaskManagement{}
+
+// GetByShortName implements [TaskManager].
+func (tm *TaskManagement) GetByShortName(shortname string) (entity.Tasker, error) {
+	task, getErr := tm.taskRepository.GetByShortName(shortname)
+
+	if getErr != nil {
+		return nil, getErr
+	}
+
+	timeRanges, trErr := tm.timeRangeManager.ListByTaskId(task.GetId())
+
+	if trErr != nil {
+		return nil, trErr
+	}
+
+	for _, timeRange := range timeRanges {
+		task.SetTimeRange(timeRange)
+	}
+
+	return task, nil
 }
 
 // Get implements [TaskManager].
@@ -87,14 +112,14 @@ func (tm *TaskManagement) List() ([]entity.Tasker, error) {
 	return tasks, nil
 }
 
-func (tm *TaskManagement) Create(name string) (entity.Tasker, error) {
+func (tm *TaskManagement) Create(shortName string, name string) (entity.Tasker, error) {
 	taskId, createErr := tm.taskRepository.Create()
 
 	if createErr != nil {
 		return nil, createErr
 	}
 
-	task := entity.CreateTask(taskId, name, tm.date)
+	task := entity.CreateTask(taskId, shortName, name, tm.date)
 
 	if saveErr := tm.taskRepository.Save(task); saveErr != nil {
 		deleteErr := tm.taskRepository.Delete(taskId)
@@ -168,5 +193,3 @@ func (tm *TaskManagement) Stop(taskId entity.DbId) (entity.Tasker, error) {
 func (tm *TaskManagement) Delete(taskId entity.DbId) error {
 	return tm.taskRepository.Delete(taskId)
 }
-
-var _ TaskManager = &TaskManagement{}

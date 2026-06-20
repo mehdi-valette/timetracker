@@ -1,14 +1,18 @@
 package entity
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var TaskTimeRangeNotFoundErr = errors.New("TimeRange not found in this task")
 var TaskDurationImpossibleErr = errors.New("The current time is below the time of the time range")
 var TaskTwoUnfinishedTimeRangeErr = errors.New("There are two unfinished time ranges")
 
-func CreateTask(id DbId, name string, date Dater) Tasker {
+func CreateTask(id DbId, shortName string, name string, date Dater) Tasker {
 	return &Task{
 		id:         id,
+		shortName:  CreateShortName(shortName),
 		name:       CreateProperNoun(name),
 		date:       date,
 		timeRanges: make([]TimeRanger, 0),
@@ -17,23 +21,55 @@ func CreateTask(id DbId, name string, date Dater) Tasker {
 
 type Tasker interface {
 	Rename(newName string)
+	Reshortname(newShortName string)
 	SetTimeRange(timeRange TimeRanger)
 	GetTimeRangeById(id DbId) (TimeRanger, error)
 	GetLastTimeRange() (TimeRanger, error)
 	Duration() (Duration, error)
 	IsRunning() bool
 	GetName() ProperNoun
+	GetShortName() ShortName
 	GetId() DbId
+	String() string
+	StringShort() string
 }
 
 type Task struct {
 	id         DbId
+	shortName  ShortName
 	name       ProperNoun
 	date       Dater
 	timeRanges []TimeRanger
 }
 
 var _ Tasker = &Task{}
+
+// StringShort implements [Tasker].
+func (t *Task) StringShort() string {
+	return fmt.Sprintf("[%s] %s", t.GetShortName(), t.GetName())
+}
+
+// String implements [Tasker].
+func (t *Task) String() string {
+	duration, _ := t.Duration()
+
+	indicator := " "
+	if t.IsRunning() {
+		indicator = "*"
+	}
+
+	return fmt.Sprintf("%s%s [%s] %s", indicator, duration.ToString(), t.GetShortName(), t.GetName())
+}
+
+// Reshortname implements [Tasker].
+func (t *Task) Reshortname(newShortName string) {
+	t.shortName = CreateShortName(newShortName)
+}
+
+// GetShortName implements [Tasker].
+func (t *Task) GetShortName() ShortName {
+	return t.shortName
+}
 
 func (t *Task) Rename(newName string) {
 	t.name = CreateProperNoun(newName)

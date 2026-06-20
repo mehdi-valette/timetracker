@@ -10,14 +10,42 @@ import (
 func createTestTask() (*Task, *DateMock) {
 	mockDater := &DateMock{}
 
-	return CreateTask(0, "my task", mockDater).(*Task), mockDater
+	return CreateTask(0, "42", "my task", mockDater).(*Task), mockDater
 }
 
 func TestCreateTask(t *testing.T) {
-	task := CreateTask(1, "   test    ", date{}).(*Task)
+	task := CreateTask(1, "  Abc De5  ", "   test    ", date{}).(*Task)
 
-	if len(task.timeRanges) != 0 || task.name != "test" || task.id != 1 {
+	if len(task.timeRanges) != 0 || task.GetShortName() != "abcde5" || task.GetName() != "test" || task.GetId() != 1 {
 		t.Errorf("Shoudl have no time ranges, name=test and id=1, got %+v", task)
+	}
+}
+
+func TestTaskString(t *testing.T) {
+	task := CreateTask(1, "abc", "my task", DateMock{})
+
+	if task.String() != " 00:00:00 [abc] my task" {
+		t.Errorf("expected a formatted task, got %s", task.String())
+	}
+}
+
+func TestTaskStringRunning(t *testing.T) {
+	task := CreateTask(1, "abc", "my task", DateMock{})
+	timeRange := CreateTimeRange(1, 1, DateMock{})
+	timeRange.Start()
+
+	task.SetTimeRange(timeRange)
+
+	if task.String() != "*00:00:00 [abc] my task" {
+		t.Errorf("expected a formatted task, got %s", task.String())
+	}
+}
+
+func TestTaskStringShort(t *testing.T) {
+	task := CreateTask(1, "abc", "my task", DateMock{})
+
+	if task.StringShort() != "[abc] my task" {
+		t.Errorf("expected a formatted task, got %s", task.StringShort())
 	}
 }
 
@@ -72,7 +100,7 @@ func TestTaskIsEqual(t *testing.T) {
 }
 
 func TestTaskRename(t *testing.T) {
-	task := CreateTask(0, "     hello     ", date{})
+	task := CreateTask(0, "", "     hello     ", date{})
 
 	if task.GetName() != "hello" {
 		t.Errorf("name should be 'hello")
@@ -82,6 +110,20 @@ func TestTaskRename(t *testing.T) {
 
 	if task.GetName() != "world" {
 		t.Errorf("name should be 'world'")
+	}
+}
+
+func TestTaskReshortname(t *testing.T) {
+	task := CreateTask(0, "  abC  ", "     hello     ", date{})
+
+	if task.GetShortName() != "abc" {
+		t.Errorf("short name should be 'abc")
+	}
+
+	task.Reshortname(" dEf  ")
+
+	if task.GetShortName() != "def" {
+		t.Errorf("short name should be 'def', got '%s'", task.GetShortName())
 	}
 }
 

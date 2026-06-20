@@ -65,7 +65,7 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.information = ""
 	case TaskCreatedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Created the task (%d) %s", msg.task.GetId(), msg.task.GetName())
+		m.information = fmt.Sprintf("Created the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskListedMsg:
@@ -75,17 +75,17 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.input.Focus()
 	case TaskStartedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Started the task (%d) %s", msg.task.GetId(), msg.task.GetName())
+		m.information = fmt.Sprintf("Started the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskStoppedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Stopped the task (%d) %s", msg.task.GetId(), msg.task.GetName())
+		m.information = fmt.Sprintf("Stopped the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskDeletedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Deleted the task (%d) %s", msg.task.GetId(), msg.task.GetName())
+		m.information = fmt.Sprintf("Deleted the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	}
@@ -98,13 +98,7 @@ func (m timeTrackerModel) View() tea.View {
 	currentTask := m.interpreter.GetCurrentTask()
 
 	if currentTask != nil {
-		duration, durationErr := currentTask.Duration()
-
-		if durationErr != nil {
-			panic(durationErr)
-		}
-
-		taskInfo = fmt.Sprintf("Current task (%d | %s) %s", currentTask.GetId(), duration.ToString(), currentTask.GetName())
+		taskInfo = fmt.Sprintf("Current task %s", currentTask.String())
 	}
 
 	info := m.information
