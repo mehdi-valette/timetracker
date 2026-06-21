@@ -43,30 +43,6 @@ type TaskInterpreter struct {
 
 var _ Interpreter = &TaskInterpreter{}
 
-type TaskStartedMsg struct {
-	task entity.Tasker
-}
-
-type TaskStoppedMsg struct {
-	task entity.Tasker
-}
-
-type TaskCreatedMsg struct {
-	task entity.Tasker
-}
-
-type TaskBeganMsg struct {
-	task entity.Tasker
-}
-
-type TaskListedMsg struct {
-	taskList string
-}
-
-type TaskDeletedMsg struct {
-	task entity.Tasker
-}
-
 func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
 	conn, connErr := repository.CreateConnection(databasePath)
 	conn.InitializeDb()
@@ -85,6 +61,8 @@ func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
 
 	lastTimeRange, getLastRangeErr := timeRangeManager.GetLastTimeRange()
 
+	taskInterpreter := &TaskInterpreter{taskManager: taskManager}
+
 	if getLastRangeErr == nil {
 		task, taskGetErr := taskManager.Get(lastTimeRange.GetTaskId())
 
@@ -92,10 +70,10 @@ func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
 			panic(taskGetErr)
 		}
 
-		return &TaskInterpreter{taskManager: taskManager, currentTask: task}, nil
+		taskInterpreter.currentTask = task
 	}
 
-	return &TaskInterpreter{taskManager: taskManager}, nil
+	return taskInterpreter, nil
 }
 
 func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
@@ -127,12 +105,12 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 		return i.deleteTask(params)
 	}
 
-	return ErrorCmd(errors.New(explanation))
+	return func() tea.Msg { return HelpMsg{help: explanation} }
 }
 
 func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
 	if len(params) < 2 {
-		return func() tea.Msg { return ErrorCmd(errors.New("give a short-name followed by the task's name")) }
+		return ErrorCmd(errors.New("give a short-name followed by the task's name"))
 	}
 
 	shortName := params[0]
@@ -177,7 +155,7 @@ func (i *TaskInterpreter) beginTask(params []string) tea.Cmd {
 	msg, ok := cmd().(TaskCreatedMsg)
 
 	if !ok {
-		return func() tea.Msg { return ErrorCmd(errors.New("error beginning the task")) }
+		return ErrorCmd(errors.New("error beginning the task"))
 	}
 
 	return i.startTask([]string{msg.task.GetShortName().String()})

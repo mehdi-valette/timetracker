@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func Run(databasePath string) (returnModel tea.Model, returnErr error) {
@@ -16,7 +18,7 @@ func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 	program := tea.NewProgram(timeTrackerModel{
 		interpreter: interpreter,
 		input:       textinput,
-		information: "",
+		details:     viewport.Model{},
 		clock:       &Clock{},
 	})
 
@@ -26,7 +28,7 @@ func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 type timeTrackerModel struct {
 	interpreter Interpreter
 	input       textinput.Model
-	information string
+	details     viewport.Model
 	error       error
 	clock       Ticker
 }
@@ -57,57 +59,69 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(textinput.Paste())
 		return m, cmd
+	case tea.WindowSizeMsg:
+		m.details.SetWidth(msg.Width)
+		m.details.SetHeight(msg.Height - lipgloss.Height(m.HeaderView()))
+	case HelpMsg:
+		m.details.SetContent(msg.help)
 	case TickMsg:
 		cmd := m.clock.Tick()
 		return m, cmd
 	case ErrorMsg:
 		m.error = msg.error
-		m.information = ""
 	case TaskCreatedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Created the task %s", msg.task.StringShort())
 		m.input = textinput.New()
-		return m, m.input.Focus()
+		m.input.Focus()
 	case TaskListedMsg:
 		m.error = nil
-		m.information = msg.taskList
+		m.details.SetContent(msg.taskList)
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskStartedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Started the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskStoppedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Stopped the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	case TaskDeletedMsg:
 		m.error = nil
-		m.information = fmt.Sprintf("Deleted the task %s", msg.task.StringShort())
 		m.input = textinput.New()
 		return m, m.input.Focus()
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.details, cmd = m.details.Update(message)
+
+	return m, cmd
+}
+
+func (m timeTrackerModel) HeaderView() string {
+	currentTaskInfo := "Current task: none"
+
+	if currentTask := m.interpreter.GetCurrentTask(); currentTask != nil {
+		currentTaskInfo = fmt.Sprintf("Current task: %s", currentTask.String())
+	}
+
+	err := ""
+
+	if m.error != nil {
+		err = m.error.Error()
+	} else if m.input.Err != nil {
+		err = m.input.Err.Error()
+	}
+
+	return lipgloss.NewStyle().Render(fmt.Sprintf("%s\n%s\n--------------------\n%s\n\n", m.input.View(), err, currentTaskInfo))
 }
 
 func (m timeTrackerModel) View() tea.View {
-	taskInfo := "Current task: none"
-	currentTask := m.interpreter.GetCurrentTask()
+	var v tea.View
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 
-	if currentTask != nil {
-		taskInfo = fmt.Sprintf("Current task %s", currentTask.String())
-	}
+	v.SetContent(fmt.Sprintf("%s%s", m.HeaderView(), m.details.View()))
 
-	info := m.information
-
-	if m.error != nil {
-		info = m.error.Error()
-	} else if m.input.Err != nil {
-		info = m.input.Err.Error()
-	}
-
-	return tea.NewView(fmt.Sprintf("%s\n%s\n-------------------\n%s", m.input.View(), taskInfo, info))
+	return v
 }
