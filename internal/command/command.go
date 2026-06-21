@@ -40,62 +40,72 @@ func (m timeTrackerModel) Init() tea.Cmd {
 }
 
 func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := message.(type) {
 	case tea.KeyPressMsg:
 		switch msg.Keystroke() {
 		case "esc", "ctrl+c":
-			return m, m.interpreter.Interpret("quit")
+			cmds = append(cmds, m.interpreter.Interpret("quit"))
 		case "ctrl+v":
-			return m, func() tea.Msg { return tea.PasteMsg{} }
+			cmds = append(cmds, func() tea.Msg { return tea.PasteMsg{} })
 		case "ctrl+l":
 			m.input = textinput.New()
-			m.input.Focus()
+			cmds = append(cmds, m.input.Focus())
 		case "enter":
-			return m, m.interpreter.Interpret(m.input.Value())
+			cmds = append(cmds, m.interpreter.Interpret(m.input.Value()))
 		default:
-			m.input, _ = m.input.Update(msg)
+			var cmd tea.Cmd
+			m.input, cmd = m.input.Update(msg)
+			cmds = append(cmds, cmd)
 		}
 	case tea.PasteMsg:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(textinput.Paste())
-		return m, cmd
+		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
+		cmds = append(cmds, m.interpreter.ListTasks())
 		m.details.SetWidth(msg.Width)
 		m.details.SetHeight(msg.Height - lipgloss.Height(m.HeaderView()))
 	case HelpMsg:
 		m.details.SetContent(msg.help)
 	case TickMsg:
-		cmd := m.clock.Tick()
-		return m, cmd
+		cmds = append(cmds, m.clock.Tick())
 	case ErrorMsg:
 		m.error = msg.error
 	case TaskCreatedMsg:
 		m.error = nil
 		m.input = textinput.New()
-		m.input.Focus()
+		cmds = append(cmds, m.input.Focus())
+		cmds = append(cmds, m.interpreter.ListTasks())
 	case TaskListedMsg:
 		m.error = nil
 		m.details.SetContent(msg.taskList)
 		m.input = textinput.New()
-		return m, m.input.Focus()
+		cmds = append(cmds, m.input.Focus())
 	case TaskStartedMsg:
 		m.error = nil
 		m.input = textinput.New()
-		return m, m.input.Focus()
+		cmds = append(cmds, m.input.Focus())
+		cmds = append(cmds, m.interpreter.ListTasks())
 	case TaskStoppedMsg:
 		m.error = nil
 		m.input = textinput.New()
-		return m, m.input.Focus()
+		cmds = append(cmds, m.input.Focus())
+		cmds = append(cmds, m.interpreter.ListTasks())
 	case TaskDeletedMsg:
 		m.error = nil
 		m.input = textinput.New()
-		return m, m.input.Focus()
+		cmds = append(cmds, m.input.Focus())
+		cmds = append(cmds, m.interpreter.ListTasks())
 	}
 
 	var cmd tea.Cmd
 	m.details, cmd = m.details.Update(message)
 
-	return m, cmd
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m timeTrackerModel) HeaderView() string {

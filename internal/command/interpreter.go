@@ -34,6 +34,7 @@ var explanation = `## Commands
 type Interpreter interface {
 	Interpret(rawLine string) tea.Cmd
 	GetCurrentTask() entity.Tasker
+	ListTasks() tea.Cmd
 }
 
 type TaskInterpreter struct {
@@ -96,7 +97,7 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 	case "begin":
 		return i.beginTask(params)
 	case "list":
-		return i.listTasks()
+		return i.ListTasks()
 	case "start":
 		return i.startTask(params)
 	case "stop":
@@ -125,7 +126,7 @@ func (i *TaskInterpreter) createTask(params []string) tea.Cmd {
 	return func() tea.Msg { return TaskCreatedMsg{task: task} }
 }
 
-func (i *TaskInterpreter) listTasks() tea.Cmd {
+func (i *TaskInterpreter) ListTasks() tea.Cmd {
 	tasks, listErr := i.taskManager.List()
 
 	if listErr != nil {
