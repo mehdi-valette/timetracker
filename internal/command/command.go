@@ -40,7 +40,10 @@ func (m timeTrackerModel) Init() tea.Cmd {
 }
 
 func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
 
 	switch msg := message.(type) {
 	case tea.KeyPressMsg:
@@ -55,12 +58,10 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			cmds = append(cmds, m.interpreter.Interpret(m.input.Value()))
 		default:
-			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
 			cmds = append(cmds, cmd)
 		}
 	case tea.PasteMsg:
-		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(textinput.Paste())
 		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
@@ -100,7 +101,6 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.interpreter.ListTasks())
 	}
 
-	var cmd tea.Cmd
 	m.details, cmd = m.details.Update(message)
 
 	cmds = append(cmds, cmd)

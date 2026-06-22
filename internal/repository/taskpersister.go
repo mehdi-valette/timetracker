@@ -17,6 +17,20 @@ type taskRecord struct {
 	name      *string
 }
 
+func (taskRecord taskRecord) recordToTasker(date entity.Dater) entity.Tasker {
+	name := ""
+	if taskRecord.name != nil {
+		name = *taskRecord.name
+	}
+
+	shortName := ""
+	if taskRecord.shortName != nil {
+		shortName = *taskRecord.shortName
+	}
+
+	return entity.CreateTask(entity.DbId(taskRecord.id), shortName, name, date)
+}
+
 func CreateTaskRepository(conn DbConnector, date entity.Dater) manager.TaskPersister {
 	return TaskRepository{
 		conn: conn,
@@ -28,6 +42,8 @@ type TaskRepository struct {
 	conn DbConnector
 	date entity.Dater
 }
+
+var _ manager.TaskPersister = TaskRepository{}
 
 // GetByShortName implements [manager.TaskPersister].
 func (t TaskRepository) GetByShortName(shortname string) (entity.Tasker, error) {
@@ -45,7 +61,7 @@ func (t TaskRepository) GetByShortName(shortname string) (entity.Tasker, error) 
 		return nil, getErr
 	}
 
-	return recordToTasker(parsedResult, t.date), nil
+	return parsedResult.recordToTasker(t.date), nil
 }
 
 // Create implements [manager.TaskPersister].
@@ -96,7 +112,7 @@ func (t TaskRepository) Get(taskId entity.DbId) (entity.Tasker, error) {
 		return &entity.Task{}, getErr
 	}
 
-	return recordToTasker(parsedResult, t.date), nil
+	return parsedResult.recordToTasker(t.date), nil
 }
 
 // Save implements [manager.TaskPersister].
@@ -147,25 +163,9 @@ func (t TaskRepository) List() ([]entity.Tasker, error) {
 
 		taskList = append(
 			taskList,
-			recordToTasker(parsedResult, t.date),
+			parsedResult.recordToTasker(t.date),
 		)
 	}
 
 	return taskList, nil
-}
-
-var _ manager.TaskPersister = TaskRepository{}
-
-func recordToTasker(parsedResult taskRecord, date entity.Dater) entity.Tasker {
-	name := ""
-	if parsedResult.name != nil {
-		name = *parsedResult.name
-	}
-
-	shortName := ""
-	if parsedResult.shortName != nil {
-		shortName = *parsedResult.shortName
-	}
-
-	return entity.CreateTask(entity.DbId(parsedResult.id), shortName, name, date)
 }

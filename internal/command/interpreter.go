@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -19,8 +20,8 @@ var explanation = `## Commands
 -     *stop [short_name]*: stop the last time range entry for *short_name*
 -    *begin [short_name]*: shortcut for *create* and *start*
 -   *delete [short_name]*: delete the task *short_name*
--          *list*: list all tasks and their duration
--  *exit*, *quit*: stop the current task and exit the application
+-                  *list*: list all tasks and their duration
+-          *exit*, *quit*: stop the current task and exit the application
 
 > note: the [short_name] can be omitted when there's a current task
 
@@ -139,8 +140,37 @@ func (i *TaskInterpreter) ListTasks() tea.Cmd {
 
 	info := new(bytes.Buffer)
 
+	slices.SortFunc(tasks, func(taskA, taskB entity.Tasker) int {
+		trA, errA := taskA.GetLastTimeRange()
+		trB, errB := taskB.GetLastTimeRange()
+
+		if errA != nil {
+			return -1
+		}
+
+		if errB != nil {
+			return 1
+		}
+
+		if !trA.HasEnded() {
+			return -1
+		}
+
+		if !trB.HasEnded() {
+			return 1
+		}
+
+		if trA.GetEnd().GetSeconds() > trB.GetEnd().GetSeconds() {
+			return -1
+		}
+
+		return 1
+	})
+
 	for _, task := range tasks {
-		fmt.Fprintf(info, "%s\n", task.String())
+		if i.currentTask == nil || task.GetId() != i.currentTask.GetId() {
+			fmt.Fprintf(info, "%s\n", task.String())
+		}
 	}
 
 	return func() tea.Msg { return TaskListedMsg{taskList: info.String()} }
