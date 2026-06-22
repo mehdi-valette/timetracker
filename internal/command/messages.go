@@ -1,6 +1,19 @@
 package command
 
-import "github.com/mehdi-valette/timetracker/internal/entity"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/mehdi-valette/timetracker/internal/entity"
+)
+
+func ErrorCmd(err error) tea.Cmd {
+	return func() tea.Msg {
+		return ErrorMsg{error: err}
+	}
+}
+
+type ErrorMsg struct {
+	error error
+}
 
 type HelpMsg struct {
 	help string
@@ -27,5 +40,9 @@ type TaskListedMsg struct {
 }
 
 type TaskDeletedMsg struct {
+	task entity.Tasker
+}
+
+type TaskRenamed struct {
 	task entity.Tasker
 }

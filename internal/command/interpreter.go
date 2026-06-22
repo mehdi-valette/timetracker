@@ -15,15 +15,16 @@ import (
 
 var explanation = `## Commands
 
-- *create [short_name] [name]*: create the task *name* with the short name *short_name*
--    *start [short_name]*: start a new time range entry for *short_name*
--     *stop [short_name]*: stop the last time range entry for *short_name*
--    *begin [short_name]*: shortcut for *create* and *start*
--   *delete [short_name]*: delete the task *short_name*
--                  *list*: list all tasks and their duration
--          *exit*, *quit*: stop the current task and exit the application
+-                      *create [short_name] [name]*: create the task *name* with the short name *short_name*
+- *rename [short_name] [new_short_name] [new_name]*: rename the task *short_name* to *new_short_name* *new_name*
+-                              *start [short_name]*: start a new time range entry for *short_name*
+-                               *stop [short_name]*: stop the last time range entry for *short_name*
+-                             *begin [short_name]*: shortcut for *create* and *start*
+-                            *delete [short_name]*: delete the task *short_name*
+-                                           *list*: list all tasks and their duration
+-                                   *exit*, *quit*: stop the current task and exit the application
 
-> note: the [short_name] can be omitted when there's a current task
+> note: the [short_name] can be omitted when there's a current task, except for rename
 
 ## Shortcuts
 
@@ -105,6 +106,8 @@ func (i *TaskInterpreter) Interpret(rawLine string) tea.Cmd {
 		return i.stopTask(params)
 	case "delete":
 		return i.deleteTask(params)
+	case "rename":
+		return i.renameTask(params)
 	}
 
 	return func() tea.Msg { return HelpMsg{help: explanation} }
@@ -294,7 +297,37 @@ func (i *TaskInterpreter) deleteTask(params []string) tea.Cmd {
 		return ErrorCmd(deleteErr)
 	}
 
-	i.currentTask = nil
+	if taskId == i.currentTask.GetId() {
+		i.currentTask = nil
+	}
 
 	return func() tea.Msg { return TaskDeletedMsg{task: task} }
+}
+
+func (i *TaskInterpreter) renameTask(params []string) tea.Cmd {
+	if len(params) < 3 {
+		return ErrorCmd(errors.New("expected three parameters"))
+	}
+
+	shortName := params[0]
+	newShortName := params[1]
+	newName := strings.Join(params[2:], " ")
+
+	task, renameErr := i.taskManager.Rename(shortName, newShortName, newName)
+
+	if renameErr != nil {
+		return ErrorCmd(renameErr)
+	}
+
+	if i.currentTask != nil && i.currentTask.GetId() == task.GetId() {
+		newTask, getErr := i.taskManager.Get(task.GetId())
+
+		if getErr != nil {
+			return ErrorCmd(getErr)
+		}
+
+		i.currentTask = newTask
+	}
+
+	return func() tea.Msg { return TaskRenamed{task: task} }
 }

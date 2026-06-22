@@ -74,27 +74,12 @@ func (m timeTrackerModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.clock.Tick())
 	case ErrorMsg:
 		m.error = msg.error
-	case TaskCreatedMsg:
-		m.error = nil
-		m.input = textinput.New()
-		cmds = append(cmds, m.input.Focus())
-		cmds = append(cmds, m.interpreter.ListTasks())
 	case TaskListedMsg:
 		m.error = nil
 		m.details.SetContent(msg.taskList)
 		m.input = textinput.New()
 		cmds = append(cmds, m.input.Focus())
-	case TaskStartedMsg:
-		m.error = nil
-		m.input = textinput.New()
-		cmds = append(cmds, m.input.Focus())
-		cmds = append(cmds, m.interpreter.ListTasks())
-	case TaskStoppedMsg:
-		m.error = nil
-		m.input = textinput.New()
-		cmds = append(cmds, m.input.Focus())
-		cmds = append(cmds, m.interpreter.ListTasks())
-	case TaskDeletedMsg:
+	case TaskDeletedMsg, TaskRenamed, TaskStoppedMsg, TaskStartedMsg, TaskCreatedMsg:
 		m.error = nil
 		m.input = textinput.New()
 		cmds = append(cmds, m.input.Focus())
