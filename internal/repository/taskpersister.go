@@ -9,8 +9,6 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/manager"
 )
 
-var TaskNotFoundErr = errors.New("task not found")
-
 type taskRecord struct {
 	id        int64
 	shortName *string
@@ -55,7 +53,7 @@ func (t TaskRepository) GetByShortName(shortname string) (entity.Tasker, error) 
 
 	if getErr != nil {
 		if strings.Contains(getErr.Error(), "sql: no rows in result set") {
-			return nil, TaskNotFoundErr
+			return nil, manager.TaskNotFoundErr
 		}
 
 		return nil, getErr
@@ -92,7 +90,7 @@ func (t TaskRepository) Delete(taskId entity.DbId) error {
 	}
 
 	if rowsAffected != 1 {
-		return TaskNotFoundErr
+		return manager.TaskNotFoundErr
 	}
 
 	return nil
@@ -107,7 +105,7 @@ func (t TaskRepository) Get(taskId entity.DbId) (entity.Tasker, error) {
 	getErr := queryResult.Scan(&parsedResult.id, &parsedResult.shortName, &parsedResult.name)
 
 	if errors.Is(getErr, sql.ErrNoRows) {
-		return &entity.Task{}, TaskNotFoundErr
+		return &entity.Task{}, manager.TaskNotFoundErr
 	} else if getErr != nil {
 		return &entity.Task{}, getErr
 	}
@@ -129,7 +127,7 @@ func (t TaskRepository) Save(task entity.Tasker) error {
 	}
 
 	if rowsCount != 1 {
-		return TaskNotFoundErr
+		return manager.TaskNotFoundErr
 	}
 
 	return nil

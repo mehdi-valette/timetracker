@@ -6,6 +6,8 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/entity"
 )
 
+var TaskNotFoundErr = errors.New("task not found")
+
 var TaskManagerTaskRunningErr = errors.New("task already running")
 var TaskManagerTaskStoppedErr = errors.New("task already running")
 
@@ -27,6 +29,7 @@ type TaskManager interface {
 	Save(taskId entity.DbId) error
 	Start(taskId entity.DbId) (entity.Tasker, error)
 	Stop(taskId entity.DbId) (entity.Tasker, error)
+	Rename(shortName string, newShortName string, newName string) (entity.Tasker, error)
 }
 
 func CreateTaskManager(persister TaskPersister, timeRangeManager TimeRangeManager, date entity.Dater) TaskManager {
@@ -41,6 +44,26 @@ type TaskManagement struct {
 	taskRepository   TaskPersister
 	timeRangeManager TimeRangeManager
 	date             entity.Dater
+}
+
+// Rename implements [TaskManager].
+func (tm *TaskManagement) Rename(shortName string, newShortName string, newName string) (entity.Tasker, error) {
+	task, getErr := tm.taskRepository.GetByShortName(shortName)
+
+	if getErr != nil {
+		return nil, getErr
+	}
+
+	task.Reshortname(newShortName)
+	task.Rename(newName)
+
+	saveErr := tm.taskRepository.Save(task)
+
+	if saveErr != nil {
+		return nil, saveErr
+	}
+
+	return task, nil
 }
 
 var _ TaskManager = &TaskManagement{}

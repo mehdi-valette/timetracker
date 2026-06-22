@@ -66,7 +66,7 @@ func TestTaskRepositoryGetByShortNameNotFound(t *testing.T) {
 	taskRepo.Create()
 	taskRepo.Create()
 
-	if _, getErr := taskRepo.GetByShortName(shortname); !errors.Is(getErr, TaskNotFoundErr) {
+	if _, getErr := taskRepo.GetByShortName(shortname); !errors.Is(getErr, manager.TaskNotFoundErr) {
 		t.Error("should return an error")
 	}
 }
@@ -97,7 +97,7 @@ func TestTaskRepositoryGetNonExistent(t *testing.T) {
 	taskRepo.Create()
 	taskRepo.Create()
 
-	if _, getErr := taskRepo.Get(-1); !errors.Is(getErr, TaskNotFoundErr) {
+	if _, getErr := taskRepo.Get(-1); !errors.Is(getErr, manager.TaskNotFoundErr) {
 		t.Error("should return an error")
 	}
 }
@@ -190,7 +190,7 @@ func TestTaskRepositorySaveNonExistent(t *testing.T) {
 
 	noTask := entity.CreateTask(-1, "", "my task", entity.CreateDate())
 
-	if err := taskRepo.Save(noTask); !errors.Is(err, TaskNotFoundErr) {
+	if err := taskRepo.Save(noTask); !errors.Is(err, manager.TaskNotFoundErr) {
 		t.Error("expected error")
 	}
 }
@@ -236,7 +236,7 @@ func TestTaskRepositoryDeleteNonExistent(t *testing.T) {
 	taskRepo.Create()
 	taskRepo.Create()
 
-	if err := taskRepo.Delete(-1); !errors.Is(err, TaskNotFoundErr) {
+	if err := taskRepo.Delete(-1); !errors.Is(err, manager.TaskNotFoundErr) {
 		t.Error("expected an error")
 	}
 }

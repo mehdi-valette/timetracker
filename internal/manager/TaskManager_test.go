@@ -42,7 +42,7 @@ func (p *taskRepositoryMock) GetByShortName(shortname string) (entity.Tasker, er
 		}
 	}
 
-	return &entity.Task{}, errors.New("task not found")
+	return &entity.Task{}, TaskNotFoundErr
 }
 
 func createTaskRepositoryMock() *taskRepositoryMock {
@@ -819,5 +819,62 @@ func TestTaskManagerDeleteError(t *testing.T) {
 
 	if len(tasksAfter) != len(taskNames) {
 		t.Errorf("should have remove a task")
+	}
+}
+
+func TestTaskManagerRename(t *testing.T) {
+	taskRepositoryMock := createTaskRepositoryMock()
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+
+	manager.Create("one", "task one")
+
+	task, renameErr := manager.Rename("one", "two", "task two")
+
+	if renameErr != nil {
+		t.Error(test.NoError(renameErr))
+	}
+
+	if task.GetName() != "task two" || task.GetShortName() != "two" {
+		t.Errorf("expected \"[two] task two\", got [%s] %s", task.GetShortName(), task.GetName())
+	}
+
+	taskOne, getOneErr := manager.GetByShortName("one")
+
+	if !errors.Is(getOneErr, TaskNotFoundErr) {
+		t.Error("shouldn't find task [one]")
+	}
+
+	if taskOne != nil {
+		t.Error("task one should be nil")
+	}
+
+	taskTwo, getTwoErr := manager.GetByShortName("two")
+
+	if getTwoErr != nil {
+		t.Error(test.NoError(getTwoErr))
+	}
+
+	if taskTwo.GetId() != task.GetId() || taskTwo.GetName() != "task two" || taskTwo.GetShortName() != "two" {
+		t.Errorf("expect \"[two] task two\", got %d [%s] %s", taskTwo.GetId(), taskTwo.GetShortName(), taskTwo.GetName())
+	}
+}
+
+func TestTaskManagerRenameErrorOnSave(t *testing.T) {
+	expectedErr := errors.New("save error")
+	taskRepositoryMock := createTaskRepositoryMock()
+
+	manager, _ := createTestTaskManager(taskRepositoryMock)
+	manager.Create("one", "task one")
+
+	taskRepositoryMock.saverErr = expectedErr
+
+	task, renameErr := manager.Rename("one", "two", "task two")
+
+	if !errors.Is(renameErr, expectedErr) {
+		t.Error("shouldn't find task [one]")
+	}
+
+	if task != nil {
+		t.Error("task one should be nil")
 	}
 }
