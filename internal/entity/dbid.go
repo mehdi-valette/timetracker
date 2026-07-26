@@ -1,3 +1,3 @@
 package entity
 
-type DbId int8
+type DbId int32
