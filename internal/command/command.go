@@ -8,20 +8,6 @@ import (
 	"github.com/mehdi-valette/timetracker/internal/command/common"
 )
 
-type Tmp struct{}
-
-func (tmp Tmp) Init() tea.Cmd {
-	return func() tea.Msg { return "" }
-}
-
-func (tmp Tmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return Tmp{}, tea.Cmd(nil)
-}
-
-func (tmp Tmp) View() tea.View {
-	return tea.View{Content: ""}
-}
-
 func Run(databasePath string) (returnModel tea.Model, returnErr error) {
 	textinput := textinput.New()
 	textinput.Focus()
