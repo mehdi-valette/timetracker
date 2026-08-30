@@ -1,4 +1,4 @@
-package command
+package alltasks
 
 import (
 	tea "charm.land/bubbletea/v2"
