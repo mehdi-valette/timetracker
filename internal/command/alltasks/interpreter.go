@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/mehdi-valette/timetracker/internal/entity"
 	"github.com/mehdi-valette/timetracker/internal/manager"
-	"github.com/mehdi-valette/timetracker/internal/repository"
 )
 
 var explanation = `## Commands
@@ -46,22 +45,7 @@ type TaskInterpreter struct {
 
 var _ Interpreter = &TaskInterpreter{}
 
-func CreateTaskInterpreter(databasePath string) (Interpreter, error) {
-	conn, connErr := repository.CreateConnection(databasePath)
-	conn.InitializeDb()
-
-	if connErr != nil {
-		return &TaskInterpreter{}, connErr
-	}
-
-	date := entity.CreateDate()
-
-	timeRangeRepo := repository.CreateTimeRangeRepository(conn, date)
-	timeRangeManager := manager.CreateTimeRangeManager(timeRangeRepo, date)
-
-	taskRepo := repository.CreateTaskRepository(conn, date)
-	taskManager := manager.CreateTaskManager(taskRepo, timeRangeManager, date)
-
+func CreateTaskInterpreter(taskManager manager.TaskManager, timeRangeManager manager.TimeRangeManager) (Interpreter, error) {
 	lastTimeRange, getLastRangeErr := timeRangeManager.GetLastTimeRange()
 
 	taskInterpreter := &TaskInterpreter{taskManager: taskManager}

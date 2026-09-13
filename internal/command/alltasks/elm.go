@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/mehdi-valette/timetracker/internal/command/common"
+	"github.com/mehdi-valette/timetracker/internal/manager"
 )
 
 type AllTasksModel struct {
@@ -19,6 +20,20 @@ type AllTasksModel struct {
 }
 
 var _ tea.Model = AllTasksModel{}
+
+func CreateAllTasksModel(taskManager manager.TaskManager, timeRangeManager manager.TimeRangeManager) AllTasksModel {
+	textinput := textinput.New()
+	textinput.Focus()
+
+	interpreter, _ := CreateTaskInterpreter(taskManager, timeRangeManager)
+
+	return AllTasksModel{
+		Interpreter: interpreter,
+		Input:       textinput,
+		Details:     viewport.Model{},
+		Clock:       &common.Clock{},
+	}
+}
 
 func (m AllTasksModel) Init() tea.Cmd {
 	return m.Clock.Tick()
