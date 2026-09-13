@@ -297,7 +297,7 @@ func (i *TaskInterpreter) deleteTask(params []string) tea.Cmd {
 		return ErrorCmd(deleteErr)
 	}
 
-	if taskId == i.currentTask.GetId() {
+	if i.currentTask != nil && taskId == i.currentTask.GetId() {
 		i.currentTask = nil
 	}
 
